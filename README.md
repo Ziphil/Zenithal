@@ -71,6 +71,7 @@ ZeML declarations are only used during processing, and removed in the output XML
 
 ### Entity Reference
 The syntax for entity references are the same as XML, but there are some additional predefined entities:
+
 | entity | character |
 |:------:|:---------:|
 | `&lcub;`, `&lbrace;` | `{` |
@@ -79,7 +80,7 @@ The syntax for entity references are the same as XML, but there are some additio
 | `&rsqb;`, `&rbrack;` | `]` |
 | `&sol;` | `/` |
 | `&bsol;` | `\` |
-| `&verbar;`, `&vert;` | `|` |
+| `&verbar;`, `&vert;` | `\|` |
 | `&num:` | `#` |
 
 ### Special tags
