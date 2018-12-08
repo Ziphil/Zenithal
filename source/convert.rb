@@ -32,6 +32,10 @@ class ZenithalConverter
               "lcub" => "{",  "rcub" => "}", "lbrace" => "{",  "rbrace" => "}", "lsqb" => "[",  "rsqb" => "]", "lbrack" => "[",  "rbrack" => "]",
               "sol" => "/", "bsol" => "\\", "verbar" => "|", "vert" => "|", "num" => "#"}
 
+  attr_writer :brace_name
+  attr_writer :bracket_name
+  attr_writer :slash_name
+
   def initialize(source)
     @source = source.chars
     @version = nil
