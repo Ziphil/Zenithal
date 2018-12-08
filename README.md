@@ -6,6 +6,8 @@
 Zenithal Markup Language (“ZML”, or “ZenML” for discernability) serves an alternative syntax for XML.
 It is almost fully compatible with XML, and less redundant and more readable than XML.
 
+Notice that the syntax of ZenML is currently a draft and subject to change.
+
 This repository provides a script for converting ZenML to XML.
 
 ## Syntax
