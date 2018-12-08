@@ -123,16 +123,18 @@ class ZenithalConverter
         result << char
       end
     end
-    if result[-1] == "?"
-      result.slice!(-1)
-      option[:processing] = true
-    elsif result[-1] == "!"
-      result.slice!(-1)
-      option[:trim] = true
-      if result[-1] == "!"
-        result.slice!(-1)
-        option[:hard_trim] = true
+    if match = result.match(/((!|\?)+)$/)
+      suffixes = match[1].chars
+      if suffixes.include?("!")
+        option[:trim] = true
+        if suffixes.count("!") >= 2
+          option[:hard_trim] = true
+        end
       end
+      if suffixes.include?("?")
+        option[:processing] = true
+      end
+      result.gsub!(/((!|\?)+)$/, "")
     end
     return [result, option]
   end
