@@ -73,7 +73,7 @@ class ZenithalConverter
 
   def convert_tag
     unless @source[@pointer += 1] == TAG_START
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     tag_name, option = parse_tag_name
     skip_spaces
@@ -89,12 +89,12 @@ class ZenithalConverter
     if char == CONTENT_START
       content = convert(option)
       unless @source[@pointer += 1] == CONTENT_END
-        raise ZenithalParseError.new()
+        raise ZenithalParseError.new
       end
     elsif char == CONTENT_END
       content = nil
     else
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     result = ""
     if option[:processing]
@@ -171,7 +171,7 @@ class ZenithalConverter
 
   def parse_attributes
     unless @source[@pointer += 1] == ATTRIBUTE_START
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     attributes = {}
     current_key = nil
@@ -188,7 +188,7 @@ class ZenithalConverter
       end
     end
     unless @source[@pointer += 1] == ATTRIBUTE_END
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     return attributes
   end
@@ -197,7 +197,7 @@ class ZenithalConverter
     key = parse_attribute_key
     skip_spaces
     unless @source[@pointer += 1] == ATTRIBUTE_EQUAL
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     skip_spaces
     value = parse_attribute_value
@@ -220,7 +220,7 @@ class ZenithalConverter
 
   def parse_attribute_value
     unless @source[@pointer += 1] == ATTRIBUTE_VALUE_START
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     result = ""
     while (char = @source[@pointer += 1]) != nil
@@ -235,11 +235,11 @@ class ZenithalConverter
 
   def convert_brace
     unless @source[@pointer += 1] == BRACE_START
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     content = convert
     unless @source[@pointer += 1] == BRACE_END
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     result = ""
     result << "<#{@brace_name}>"
@@ -250,11 +250,11 @@ class ZenithalConverter
 
   def convert_bracket
     unless @source[@pointer += 1] == BRACKET_START
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     content = convert
     unless @source[@pointer += 1] == BRACKET_END
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     result = ""
     result << "<#{@bracket_name}>"
@@ -265,11 +265,11 @@ class ZenithalConverter
 
   def convert_slash
     unless @source[@pointer += 1] == SLASH_START
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     content = convert({:in_slash => true})
     unless @source[@pointer += 1] == SLASH_END
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     result = ""
     result << "<#{@slash_name}>"
@@ -280,7 +280,7 @@ class ZenithalConverter
 
   def convert_comment
     unless @source[@pointer += 1] == COMMENT_START
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     result = "<!--"
     while (char = @source[@pointer += 1]) != nil
@@ -330,7 +330,7 @@ class ZenithalConverter
 
   def convert_entity
     unless @source[@pointer += 1] == ENTITY_START
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     content = ""
     while (char = @source[@pointer += 1]) != nil
@@ -341,7 +341,7 @@ class ZenithalConverter
       end
     end
     unless @source[@pointer] == ENTITY_END
-      raise ZenithalParseError.new()
+      raise ZenithalParseError.new
     end
     result = ENTITIES[content] || "&#{content};"
     return result
