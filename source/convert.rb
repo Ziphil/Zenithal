@@ -31,6 +31,7 @@ class ZenithalConverter
   ENTITIES = {"amp" => "&amp;", "lt" => "&lt;", "gt" => "&gt;", "apos" => "&apos;", "quot" => "&quot;",
               "lcub" => "{",  "rcub" => "}", "lbrace" => "{",  "rbrace" => "}", "lsqb" => "[",  "rsqb" => "]", "lbrack" => "[",  "rbrack" => "]",
               "sol" => "/", "bsol" => "\\", "verbar" => "|", "vert" => "|", "num" => "#"}
+  INVERSE_ENTITIES = {"&" => "&amp;", "<" => "&lt;", ">" => "&gt;", "'" => "&apos;", "\"" => "&quot;"}
 
   attr_writer :brace_name
   attr_writer :bracket_name
@@ -91,7 +92,11 @@ class ZenithalConverter
       char = @source[@pointer += 1]
     end
     if char == CONTENT_START
-      content = convert(option)
+      if option[:verbal]
+        content = convert_verbal_text(option)
+      else
+        content = convert(option)
+      end
       unless @source[@pointer += 1] == CONTENT_END
         raise ZenithalParseError.new
       end
@@ -123,7 +128,7 @@ class ZenithalConverter
         result << char
       end
     end
-    if match = result.match(/((!|\?)+)$/)
+    if match = result.match(/((!|\?|~)+)$/)
       suffixes = match[1].chars
       if suffixes.include?("!")
         option[:trim] = true
@@ -134,7 +139,10 @@ class ZenithalConverter
       if suffixes.include?("?")
         option[:processing] = true
       end
-      result.gsub!(/((!|\?)+)$/, "")
+      if suffixes.include?("~")
+        option[:verbal] = true
+      end
+      result.gsub!(/((!|\?|~)+)$/, "")
     end
     return [result, option]
   end
@@ -326,6 +334,26 @@ class ZenithalConverter
             space = ""
             result << char
           end
+        else
+          result << char
+        end
+      end
+    end
+    return result
+  end
+
+  def convert_verbal_text(option)
+    result = ""
+    while (char = @source[@pointer += 1]) != nil
+      if char == CONTENT_END
+        @pointer -= 1
+        break
+      elsif char == ENTITY_START
+        @pointer -= 1
+        result << convert_entity
+      else
+        if INVERSE_ENTITIES.key?(char)
+          result << INVERSE_ENTITIES[char]
         else
           result << char
         end
