@@ -1,0 +1,4 @@
+sample/*.xml
+.vscode
+desktop.ini
+Thumbs.db
