@@ -10,7 +10,7 @@ Notice that the syntax of ZenML is currently a draft and subject to change.
 
 This repository provides a script for converting ZenML to XML.
 
-## Syntax
+## Syntax (Version 1.0)
 
 ### Element
 An element is marked up by an element name following `\`, and its content is surrounded by `<` and `>`:
@@ -79,7 +79,7 @@ Moreover, `>` is needed at the end of the element to indicate that the content i
 ### ZenML Declaration
 ZenML documents should (but not have to) start with an ZenML declaration, as follows:
 ```
-\zml?|version="1.0.0"|
+\zml?|version="1.0"|>
 ```
 ZeML declarations are only used during processing, and removed in the output XML.
 
@@ -101,7 +101,7 @@ The syntax for entity references are the same as XML, but there are some additio
 Braces (`{}`), brackets (`[]`) and slashes (`//`) are treated as a special tag in ZenML, and converted to certain elements in XML.
 In the ZenML declaration, you can specify the name of tags to which these special tags are converted.
 ```
-\zml?|version="1.0.0",brace="a",bracket="b",slash="c"|
+\zml?|version="1.0",brace="a",bracket="b",slash="c"|
 {brace} [bracket] /slash/
 ```
 This will be:
@@ -110,7 +110,7 @@ This will be:
 ```
 If you do not specify the name of the special tags, they are simply not converted.
 ```
-\zml?|version="1.0.0",brace="a",bracket="b"|
+\zml?|version="1.0",brace="a",bracket="b"|
 {brace} [bracket] /slash/
 ```
 This will be:
