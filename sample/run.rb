@@ -2,14 +2,20 @@
 
 
 require 'pp'
+require 'rexml/document'
 require_relative '../source/convert'
+include REXML
 
 Encoding.default_external = "UTF-8"
 $stdout.sync = true
 
 
 source = File.read("sample.zml")
-converter = ZenithalConverter.new(source)
+parser = ZenithalParser.new(source)
 File.open("sample.xml", "w") do |file|
-  file.print(converter.convert)
+  formatter = Formatters::Default.new
+  nodes = parser.parse
+  nodes.each do |node|
+    formatter.write(node, file)
+  end
 end

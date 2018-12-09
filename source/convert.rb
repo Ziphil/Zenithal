@@ -2,12 +2,14 @@
 
 
 require 'pp'
+require 'rexml/document'
+include REXML
 
 Encoding.default_external = "UTF-8"
 $stdout.sync = true
 
 
-class ZenithalConverter
+class ZenithalParser
 
   TAG_START = "\\"
   ATTRIBUTE_START = "|"
@@ -27,7 +29,7 @@ class ZenithalConverter
   ENTITY_START = "&"
   ENTITY_END = ";"
   COMMENT_START = "#"
-  SYSTEM_PROCESSING_NAME = "zml"
+  SYSTEM_INSTRUCTION_NAME = "zml"
   ENTITIES = {"amp" => "&amp;", "lt" => "&lt;", "gt" => "&gt;", "apos" => "&apos;", "quot" => "&quot;",
               "lcub" => "{",  "rcub" => "}", "lbrace" => "{",  "rbrace" => "}", "lsqb" => "[",  "rsqb" => "]", "lbrack" => "[",  "rbrack" => "]",
               "sol" => "/", "bsol" => "\\", "verbar" => "|", "vert" => "|", "num" => "#"}
@@ -46,44 +48,50 @@ class ZenithalConverter
     @pointer = -1
   end
 
-  def convert(option = {})
-    result = ""
+  def parse(option = {})
+    children = []
     while (char = @source[@pointer += 1]) != nil
       if !option[:ignore_tag] && char == TAG_START
         @pointer -= 1
-        result << convert_tag
+        children << parse_element
       elsif @brace_name && char == BRACE_START
         @pointer -= 1
-        result << convert_brace
+        children << parse_brace
       elsif @bracket_name && char == BRACKET_START
         @pointer -= 1
-        result << convert_bracket
+        children << parse_bracket
       elsif @slash_name && !option[:in_slash] && char == SLASH_START
         @pointer -= 1
-        result << convert_slash
+        children << parse_slash
       elsif char == COMMENT_START
         @pointer -= 1
-        result << convert_comment
+        children << parse_comment
       elsif char == CONTENT_END || (@brace_name && char == BRACE_END) || (@bracket_name && char == BRACKET_END) || (@slash_name && char == SLASH_END)
         @pointer -= 1
         break
       else
         @pointer -= 1
-        result << convert_text(option)
+        children << parse_text(option)
       end
     end
-    result.strip! if option[:trim]
-    return result
+    if option[:trim]
+      if children[0].is_a?(Text)
+        children[0] = Text.new(children[0].to_s.lstrip, true, nil, true)
+      end
+      if children[-1].is_a?(Text)
+        children[-1] = Text.new(children[-1].to_s.rstrip, true, nil, true)
+      end
+    end
+    return children
   end
 
-  def convert_tag
+  def parse_element
     unless @source[@pointer += 1] == TAG_START
       raise ZenithalParseError.new
     end
-    tag_name, option = parse_tag_name
+    name, option = parse_element_name
     skip_spaces
-    attributes = {}
-    content = nil
+    attributes, children = {}, []
     char = @source[@pointer += 1]
     if char == ATTRIBUTE_START
       @pointer -= 1
@@ -92,43 +100,42 @@ class ZenithalConverter
       char = @source[@pointer += 1]
     end
     if char == CONTENT_START
-      if option[:verbal]
-        content = convert_verbal_text(option)
+      if option[:verbal] || option[:processing]
+        children = [parse_verbal_text(option)]
       else
-        content = convert(option)
+        children = parse(option)
       end
       unless @source[@pointer += 1] == CONTENT_END
         raise ZenithalParseError.new
       end
     elsif char == CONTENT_END
-      content = nil
+      children = []
     else
       raise ZenithalParseError.new
     end
-    result = ""
+    element = nil
     if option[:processing]
-      result << create_processing(tag_name, attributes, content)
-      if tag_name == SYSTEM_PROCESSING_NAME
+      element = create_instruction(name, attributes, children)
+      if name == SYSTEM_INSTRUCTION_NAME
         skip_spaces
       end
     else
-      result << create_tag(tag_name, attributes, content)
+      element = create_element(name, attributes, children)
     end
-    return result
+    return element
   end
 
-  def parse_tag_name
-    result = ""
-    option = {}
+  def parse_element_name
+    name, option = "", {}
     while (char = @source[@pointer += 1]) != nil
       if char == ATTRIBUTE_START || char == CONTENT_START || char == CONTENT_END || char =~ /\s/
         @pointer -= 1
         break
       else
-        result << char
+        name << char
       end
     end
-    if match = result.match(/((!|\?|~)+)$/)
+    if match = name.match(/((!|\?|~)+)$/)
       suffixes = match[1].chars
       if suffixes.include?("!")
         option[:trim] = true
@@ -142,45 +149,40 @@ class ZenithalConverter
       if suffixes.include?("~")
         option[:verbal] = true
       end
-      result.gsub!(/((!|\?|~)+)$/, "")
+      name.gsub!(/((!|\?|~)+)$/, "")
     end
-    return [result, option]
+    return [name, option]
   end
 
-  def create_tag(tag_name, attributes, content)
-    result = ""
-    result << "<#{tag_name}"
+  def create_element(name, attributes, children)
+    element = Element.new(name)
     attributes.each do |key, value|
-      result << " #{key}=\"#{value}\""
+      element.add_attribute(key, value)
     end
-    if content
-      result << ">"
-      result << content
-      result << "</#{tag_name}>"
-    else
-      result << "/>"
+    children.each do |child|
+      element.add(child)
     end
-    return result
+    return element
   end
 
-  def create_processing(tag_name, attributes, content)
-    result = ""
-    if tag_name == SYSTEM_PROCESSING_NAME
+  def create_instruction(target, attributes, children)
+    instruction = Instruction.new(target)
+    if target == SYSTEM_INSTRUCTION_NAME
       @version = attributes["version"]
       @brace_name = attributes["brace"]
       @bracket_name = attributes["bracket"]
       @slash_name = attributes["slash"]
     else
-      result << "<?#{tag_name}"
+      actual_content = ""
       attributes.each do |key, value|
-        result << " #{key}=\"#{value}\""
+        actual_content << "#{key}=\"#{value}\" "
       end
-      if content
-        result << " #{content}"
+      if children[0] && !children[0].empty?
+        actual_content << "#{children[0]} "
       end
-      result << "?>"
+      instruction.content = actual_content
     end
-    return result
+    return instruction
   end
 
   def parse_attributes
@@ -220,97 +222,98 @@ class ZenithalConverter
   end
 
   def parse_attribute_key
-    result = ""
+    key = ""
     while (char = @source[@pointer += 1]) != nil
       if char == ATTRIBUTE_EQUAL || char =~ /\s/
         @pointer -= 1
         break
       else
-        result << char
+        key << char
       end
     end
-    return result
+    return key
   end
 
   def parse_attribute_value
     unless @source[@pointer += 1] == ATTRIBUTE_VALUE_START
       raise ZenithalParseError.new
     end
-    result = ""
+    value = ""
     while (char = @source[@pointer += 1]) != nil
       if char == ATTRIBUTE_VALUE_END
         break
       else
-        result << char
+        value << char
       end
     end
-    return result
+    return value
   end
 
-  def convert_brace
+  def parse_brace
     unless @source[@pointer += 1] == BRACE_START
       raise ZenithalParseError.new
     end
-    content = convert
+    children = parse
     unless @source[@pointer += 1] == BRACE_END
       raise ZenithalParseError.new
     end
-    result = ""
-    result << "<#{@brace_name}>"
-    result << content
-    result << "</#{@brace_name}>"
-    return result
+    element = Element.new(@brace_name)
+    children.each do |child|
+      element.add(child)
+    end
+    return element
   end
 
-  def convert_bracket
+  def parse_bracket
     unless @source[@pointer += 1] == BRACKET_START
       raise ZenithalParseError.new
     end
-    content = convert
+    children = parse
     unless @source[@pointer += 1] == BRACKET_END
       raise ZenithalParseError.new
     end
-    result = ""
-    result << "<#{@bracket_name}>"
-    result << content
-    result << "</#{@bracket_name}>"
-    return result
+    element = Element.new(@bracket_name)
+    children.each do |child|
+      element.add(child)
+    end
+    return element
   end
 
-  def convert_slash
+  def parse_slash
     unless @source[@pointer += 1] == SLASH_START
       raise ZenithalParseError.new
     end
-    content = convert({:in_slash => true})
+    children = parse({:in_slash => true})
     unless @source[@pointer += 1] == SLASH_END
       raise ZenithalParseError.new
     end
-    result = ""
-    result << "<#{@slash_name}>"
-    result << content
-    result << "</#{@slash_name}>"
-    return result
+    element = Element.new(@slash_name)
+    children.each do |child|
+      element.add(child)
+    end
+    return element
   end
 
-  def convert_comment
+  def parse_comment
     unless @source[@pointer += 1] == COMMENT_START
       raise ZenithalParseError.new
     end
-    result = "<!--"
+    string = ""
     while (char = @source[@pointer += 1]) != nil
       if char == "\n"
         @pointer -= 1
         break
       else
-        result << char
+        string << char
       end
     end
-    result << " -->"
-    return result
+    string << " "
+    comment = Comment.new(string)
+    return comment
   end
 
-  def convert_text(option = {})
-    result = ""
+  def parse_text(option = {})
+    string = ""
     space = ""
     while (char = @source[@pointer += 1]) != nil
       if char == TAG_START || (@brace_name && char == BRACE_START) || (@bracket_name && char == BRACKET_START) || (@slash_name && char == SLASH_START)
@@ -324,45 +327,47 @@ class ZenithalConverter
         break
       elsif char == ENTITY_START
         @pointer -= 1
-        result << convert_entity
+        string << parse_entity
       else
         if option[:hard_trim]
           if char =~ /\s/
             space << char
           else
-            result << space unless space.include?("\n")
+            string << space unless space.include?("\n")
             space = ""
-            result << char
+            string << char
           end
         else
-          result << char
+          string << char
         end
       end
     end
-    return result
+    text = Text.new(string, true, nil, true)
+    return text
   end
 
-  def convert_verbal_text(option)
-    result = ""
+  def parse_verbal_text(option = {})
+    string = ""
     while (char = @source[@pointer += 1]) != nil
       if char == CONTENT_END
         @pointer -= 1
         break
       elsif char == ENTITY_START
         @pointer -= 1
-        result << convert_entity
+        string << parse_entity
       else
         if INVERSE_ENTITIES.key?(char)
-          result << INVERSE_ENTITIES[char]
+          string << INVERSE_ENTITIES[char]
         else
-          result << char
+          string << char
         end
       end
     end
-    return result
+    text = Text.new(string, true, nil, true)
+    return text
   end
 
-  def convert_entity
+  def parse_entity
     unless @source[@pointer += 1] == ENTITY_START
       raise ZenithalParseError.new
     end

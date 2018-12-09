@@ -135,8 +135,21 @@ This will be converted to:
 Not yet supported.
 
 ## Usage
-The following Ruby code converts a ZenML string to an XML string:
+Create a `ZenithalParser` instance with a ZenML string, and then call `parse` method.
+This method returns an array of `REXML::Node` instances which are the result of parsing the toplevel nodes.
+Since ZenML does not require that there is only one element at the toplevel, the parsing result may consist of more than one nodes.
+
+The following example code converts a ZenML file to an XML file:
 ```ruby
-converter = ZenithalConverter.new(zenml)
-xml = converter.convert
+# read a ZenML source from a file
+source = File.read("sample.zml")
+parser = ZenithalParser.new(source)
+File.open("sample.xml", "w") do |file|
+  # create a formatter to output the node tree as a string
+  formatter = Formatters::Default.new
+  nodes = parser.parse
+  nodes.each do |node|
+    formatter.write(node, file)
+  end
+end
 ```
