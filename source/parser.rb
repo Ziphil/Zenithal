@@ -74,6 +74,7 @@ class ZenithalParser
         children << parse_text(option)
       end
     end
+    children.compact!
     if option[:trim]
       if children[0].is_a?(Text)
         children[0] = Text.new(children[0].to_s.lstrip, true, nil, true)
@@ -172,6 +173,7 @@ class ZenithalParser
       @brace_name = attributes["brace"]
       @bracket_name = attributes["bracket"]
       @slash_name = attributes["slash"]
+      instruction = nil
     else
       actual_content = ""
       attributes.each do |key, value|
