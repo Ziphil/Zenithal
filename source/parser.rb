@@ -432,6 +432,7 @@ class ZenithalParser
       count += 1
     end
     @pointer -= 1
+    return count
   end
 
   def self.valid_start_char?(char)
