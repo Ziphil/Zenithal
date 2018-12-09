@@ -118,11 +118,11 @@ The syntax for entity references are the same as XML, but there are some additio
 | `&verbar;`, `&vert;` | `\|` |
 | `&num;` | `#` |
 
-### Special Tags
+### Special Tag
 Braces (`{}`), brackets (`[]`) and slashes (`//`) are treated as a special tag in ZenML, and converted to certain elements in XML.
 In the ZenML declaration, you can specify the name of tags to which these special tags are converted.
 ```
-\zml?|version="1.0",brace="a",bracket="b",slash="c"|
+\zml?|version="1.0",brace="a",bracket="b",slash="c"|>
 {brace} [bracket] /slash/
 ```
 This will be:
@@ -131,7 +131,7 @@ This will be:
 ```
 If you do not specify the name of the special tags, they are simply not converted.
 ```
-\zml?|version="1.0",brace="a",bracket="b"|
+\zml?|version="1.0",brace="a",bracket="b"|>
 {brace} [bracket] /slash/
 ```
 This will be:
