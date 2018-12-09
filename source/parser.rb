@@ -29,11 +29,17 @@ class ZenithalParser
   ENTITY_START = "&"
   ENTITY_END = ";"
   COMMENT_START = "#"
+  INSTRUCTION_MARK = "?"
+  TRIM_MARK = "!"
+  VERBAL_MARK = "~"
   SYSTEM_INSTRUCTION_NAME = "zml"
   ENTITIES = {"amp" => "&amp;", "lt" => "&lt;", "gt" => "&gt;", "apos" => "&apos;", "quot" => "&quot;",
               "lcub" => "{",  "rcub" => "}", "lbrace" => "{",  "rbrace" => "}", "lsqb" => "[",  "rsqb" => "]", "lbrack" => "[",  "rbrack" => "]",
               "sol" => "/", "bsol" => "\\", "verbar" => "|", "vert" => "|", "num" => "#"}
   INVERSE_ENTITIES = {"&" => "&amp;", "<" => "&lt;", ">" => "&gt;", "'" => "&apos;", "\"" => "&quot;"}
+  VALID_START_CHARS = [0x3A, 0x41..0x5A, 0x5F, 0x61..0x7A, 0xC0..0xD6, 0xD8..0xF6, 0xF8..0x2FF, 0x370..0x37D, 0x37F..0x1FFF, 0x200C..0x200D, 
+                       0x2070..0x218F, 0x2C00..0x2FEF, 0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF]
+  VALID_MIDDLE_CHARS = [0x2D, 0x2E, 0x30..0x39, 0xB7, 0x0300..0x036F, 0x203F..0x2040]
 
   attr_writer :brace_name
   attr_writer :bracket_name
@@ -101,7 +107,7 @@ class ZenithalParser
       char = @source[@pointer += 1]
     end
     if char == CONTENT_START
-      if option[:verbal] || option[:processing]
+      if option[:verbal] || option[:instruction]
         children = [parse_verbal_text(option)]
       else
         children = parse(option)
@@ -115,7 +121,7 @@ class ZenithalParser
       raise ZenithalParseError.new
     end
     element = nil
-    if option[:processing]
+    if option[:instruction]
       element = create_instruction(name, attributes, children)
       if name == SYSTEM_INSTRUCTION_NAME
         skip_spaces
@@ -127,30 +133,32 @@ class ZenithalParser
   end
 
   def parse_element_name
-    name, option = "", {}
+    name, marks, option = "", [], {}
     while (char = @source[@pointer += 1]) != nil
       if char == ATTRIBUTE_START || char == CONTENT_START || char == CONTENT_END || char =~ /\s/
         @pointer -= 1
         break
-      else
+      elsif char == INSTRUCTION_MARK || char == TRIM_MARK || char == VERBAL_MARK
+        marks << char
+      elsif name.empty? && marks.empty? && ZenithalParser.valid_start_char?(char)
         name << char
+      elsif !name.empty? && marks.empty? && ZenithalParser.valid_char?(char)
+        name << char
+      else
+        raise ZenithalParseError.new
       end
     end
-    if match = name.match(/((!|\?|~)+)$/)
-      suffixes = match[1].chars
-      if suffixes.include?("!")
-        option[:trim] = true
-        if suffixes.count("!") >= 2
-          option[:hard_trim] = true
-        end
+    if marks.include?(INSTRUCTION_MARK)
+      option[:instruction] = true
+    end
+    if marks.include?(TRIM_MARK)
+      option[:trim] = true
+      if marks.count(TRIM_MARK) >= 2
+        option[:hard_trim] = true
       end
-      if suffixes.include?("?")
-        option[:processing] = true
-      end
-      if suffixes.include?("~")
-        option[:verbal] = true
-      end
-      name.gsub!(/((!|\?|~)+)$/, "")
+    end
+    if marks.include?(VERBAL_MARK)
+      option[:verbal] = true
     end
     return [name, option]
   end
@@ -394,6 +402,14 @@ class ZenithalParser
       count += 1
     end
     @pointer -= 1
+  end
+
+  def self.valid_start_char?(char)
+    return VALID_START_CHARS.any?{|s| s === char.ord}
+  end
+
+  def self.valid_char?(char)
+    return VALID_START_CHARS.any?{|s| s === char.ord} || VALID_MIDDLE_CHARS.any?{|s| s === char.ord}
   end
 
 end
