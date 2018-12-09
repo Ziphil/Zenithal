@@ -152,13 +152,16 @@ This will be converted to:
 <!-- this is a comment -->
 ```
 
+### CDATA Section
+In ZenML, there is no equivalent for CDATA section of XML, but you can achieve similar effect by using a tag suffixed with `~`.
+
 ### Document Type Declaration
 Not yet supported.
 
 ## Usage
 Create a `ZenithalParser` instance with a ZenML string, and then call `parse` method.
-This method returns an array of `REXML::Node` instances which are the result of parsing the toplevel nodes.
-Since ZenML does not require that there is only one element at the toplevel, the parsing result may consist of more than one nodes.
+This method returns a `REXML::Document` instance.
+If you want a XML string instead of a syntax tree, use formatters of `rexml/document` library.
 
 The following example code converts a ZenML file to an XML file:
 ```ruby
@@ -168,9 +171,7 @@ parser = ZenithalParser.new(source)
 File.open("sample.xml", "w") do |file|
   # create a formatter to output the node tree as a string
   formatter = Formatters::Default.new
-  nodes = parser.parse
-  nodes.each do |node|
-    formatter.write(node, file)
-  end
+  document = parser.parse
+  formatter.write(document, file)
 end
 ```
