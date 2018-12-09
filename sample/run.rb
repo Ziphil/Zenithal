@@ -3,7 +3,7 @@
 
 require 'pp'
 require 'rexml/document'
-require_relative '../source/convert'
+require_relative '../source/parser'
 include REXML
 
 Encoding.default_external = "UTF-8"
