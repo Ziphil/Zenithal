@@ -47,7 +47,7 @@ Of course, you can place any number of elements inside another element, as is us
 ```
 
 ### Changing Treatment of the Inner Text
-If the tag name ends with `~`, the inner text is treated as a textual data without any markup.
+If the tag name is suffixed with `~`, the inner text is treated as a textual data without any markup.
 It shows similar behaviour to CDATA sections in XML, but entity references are valid in the tag with `~`.
 ```
 \tag~<entity: &lt; \inner|attr="val"|<foo&gt;>
@@ -57,6 +57,27 @@ This will become:
 <tag>entity: &lt; \inner|attr=&quot;val&quot;|&lt;foo&gt;</tag>
 ```
 Note that the inner text ends at `>`, so if you want to include `>` in the inner text, it must be escaped.
+
+If the tag name is marked with `!`, the leading and trailing whitespaces (including newlines) of the inner text are removed.
+```
+\tag!<   foo bar  baz 
+    >
+```
+This will become:
+```xml
+<tag>foo bar  baz</tag>
+```
+If the tag name is marked with `!!`, the whitespace before and after each newlines are also removed, and thus the consequent inner text is one-line.
+Note that the whitespace between ordinal letters (not at the beginning or end of a line) is preserved.
+```
+\tag!!<   foo bar  baz
+  foo bar  baz 
+    >
+```
+This will become:
+```xml
+<tag>foo bar  bazfoo bar  baz</tag>
+```
 
 ### Processing Instruction
 The syntax for processing instructions is identical with that for ordinary tags, except that the tag name must end with `?`.
