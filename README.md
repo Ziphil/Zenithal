@@ -140,16 +140,16 @@ This will be:
 ```
 
 ### Comment
-There is no XML style comment in ZenML.
-ZenML supports only line comments, which are marked up by `#`.
+A comment starts with `#<` and ends with `>#`.
+In addition to this XML-style comment, ZenML supports a single-line comment, which is marked up by `##`.
 ```
-\tag<foo>  # comment
-# this is a comment
+\tag<foo> #<comment># \tag<bar>
+## one-line comment
 ```
 This will be converted to:
 ```xml
-<tag>foo</tag>  <!-- comment -->
-<!-- this is a comment -->
+<tag>foo</tag> <!-- comment --> <tag>bar</tag>
+<!-- one-line comment -->
 ```
 
 ### CDATA Section
