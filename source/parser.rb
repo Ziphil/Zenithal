@@ -51,7 +51,7 @@ class ZenithalParser
   def parse(option = {})
     children = []
     while (char = @source[@pointer += 1]) != nil
-      if !option[:ignore_tag] && char == TAG_START
+      if char == TAG_START
         @pointer -= 1
         children << parse_element
       elsif @brace_name && char == BRACE_START
