@@ -175,14 +175,19 @@ class ZenithalParser
   end
 
   def create_instruction(target, attributes, children)
-    instruction = Instruction.new(target)
+    instruction = nil
     if target == SYSTEM_INSTRUCTION_NAME
       @version = attributes["version"]
       @brace_name = attributes["brace"]
       @bracket_name = attributes["bracket"]
       @slash_name = attributes["slash"]
-      instruction = nil
+    elsif target == "xml"
+      instruction = XMLDecl.new
+      instruction.version = attributes["version"] || XMLDecl::DEFAULT_VERSION
+      instruction.encoding = attributes["encoding"]
+      instruction.standalone = attributes["standalone"]
     else
+      instruction = Instruction.new(target)
       actual_content = ""
       attributes.each do |key, value|
         actual_content << "#{key}=\"#{value}\" "
