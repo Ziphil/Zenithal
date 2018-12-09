@@ -54,7 +54,16 @@ class ZenithalParser
     @pointer = -1
   end
 
-  def parse(option = {})
+  def parse
+    document = Document.new
+    children = parse_nodes
+    children.each do |child|
+      document.add(child)
+    end
+    return document
+  end
+
+  def parse_nodes(option = {})
     children = []
     while (char = @source[@pointer += 1]) != nil
       if char == TAG_START
@@ -110,7 +119,7 @@ class ZenithalParser
       if option[:verbal] || option[:instruction]
         children = [parse_verbal_text(option)]
       else
-        children = parse(option)
+        children = parse_nodes(option)
       end
       unless @source[@pointer += 1] == CONTENT_END
         raise ZenithalParseError.new
@@ -298,7 +307,7 @@ class ZenithalParser
     unless @source[@pointer += 1] == SLASH_START
       raise ZenithalParseError.new
     end
-    children = parse({:in_slash => true})
+    children = parse_nodes({:in_slash => true})
     unless @source[@pointer += 1] == SLASH_END
       raise ZenithalParseError.new
     end
