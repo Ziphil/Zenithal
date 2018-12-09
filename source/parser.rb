@@ -188,14 +188,14 @@ class ZenithalParser
       instruction.standalone = attributes["standalone"]
     else
       instruction = Instruction.new(target)
-      actual_content = ""
+      actual_contents = []
       attributes.each do |key, value|
-        actual_content << "#{key}=\"#{value}\" "
+        actual_contents << "#{key}=\"#{value}\""
       end
       if children[0] && !children[0].empty?
-        actual_content << "#{children[0]} "
+        actual_contents << children[0]
       end
-      instruction.content = actual_content
+      instruction.content = actual_contents.join(" ")
     end
     return instruction
   end
