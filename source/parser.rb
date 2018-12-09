@@ -28,7 +28,7 @@ class ZenithalParser
   SLASH_END = "/"
   ENTITY_START = "&"
   ENTITY_END = ";"
-  COMMENT_START = "#"
+  COMMENT_DELIMITER = "#"
   INSTRUCTION_MARK = "?"
   TRIM_MARK = "!"
   VERBAL_MARK = "~"
@@ -78,7 +78,7 @@ class ZenithalParser
       elsif @slash_name && !option[:in_slash] && char == SLASH_START
         @pointer -= 1
         children << parse_slash
-      elsif char == COMMENT_START
+      elsif char == COMMENT_DELIMITER
         @pointer -= 1
         children << parse_comment
       elsif char == CONTENT_END || (@brace_name && char == BRACE_END) || (@bracket_name && char == BRACKET_END) || (@slash_name && char == SLASH_END)
@@ -319,20 +319,36 @@ class ZenithalParser
   end
 
   def parse_comment
-    unless @source[@pointer += 1] == COMMENT_START
+    unless @source[@pointer += 1] == COMMENT_DELIMITER
       raise ZenithalParseError.new
     end
+    char = @source[@pointer += 1]
     string = ""
-    while (char = @source[@pointer += 1]) != nil
-      if char == "\n"
-        @pointer -= 1
-        break
-      else
-        string << char
+    if char == COMMENT_DELIMITER
+      while (char = @source[@pointer += 1]) != nil
+        if char == "\n"
+          @pointer -= 1
+          break
+        else
+          string << char
+        end
+      end
+    elsif char == CONTENT_START
+      while (char = @source[@pointer += 1]) != nil
+        if char == CONTENT_END
+          next_char = @source[@pointer += 1]
+          if next_char == COMMENT_DELIMITER
+            break
+          else
+            string << char
+            @pointer -= 1
+          end
+        else
+          string << char
+        end
       end
     end
-    string << " "
-    comment = Comment.new(string)
+    comment = Comment.new(" #{string.strip} ")
     return comment
   end
 
@@ -346,7 +362,7 @@ class ZenithalParser
       elsif char == CONTENT_END || (@brace_name && char == BRACE_END) || (@bracket_name && char == BRACKET_END) || (@slash_name && char == SLASH_END)
         @pointer -= 1
         break
-      elsif char == COMMENT_START
+      elsif char == COMMENT_DELIMITER
         @pointer -= 1
         break
       elsif char == ENTITY_START
