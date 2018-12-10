@@ -67,17 +67,28 @@ This will become:
 ```xml
 <tag>foo bar  baz</tag>
 ```
-If the tag name is marked with `!!`, the whitespace before and after each newlines are also removed, and thus the consequent inner text is one-line.
-Note that the whitespace between ordinal letters (not at the beginning or end of a line) is preserved.
+If the tag name is marked with `!!`, the same number of trailing whitespaces as that of the least-indented line are also removed from each line.
+This may be useful, if you want to insert indentations to the inner text for legibility but do not want them left in the output, for example when marking up a `<pre>` tag of HTML. 
 ```
-\tag!!<   foo bar  baz
-  foo bar  baz 
-    >
+\div<
+  \pre!!<
+    foobarbazfoobarbaz
+      foobarbaz
+        foobarbaz
+    foobarbazfoobarbaz
+  >
+>
 ```
 This will become:
 ```xml
-<tag>foo bar  bazfoo bar  baz</tag>
+<div>
+  <pre>foobarbazfoobarbaz
+  foobarbaz
+    foobarbaz
+foobarbazfoobarbaz</pre>
+</div>
 ```
+But this is not yet implemented…!
 
 ### Processing Instruction
 The syntax for processing instructions is identical with that for ordinary tags, except that the tag name must end with `?`.
