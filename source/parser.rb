@@ -277,7 +277,7 @@ class ZenithalParser
     unless @source[@pointer += 1] == BRACE_START
       raise ZenithalParseError.new
     end
-    children = parse
+    children = parse_nodes
     unless @source[@pointer += 1] == BRACE_END
       raise ZenithalParseError.new
     end
@@ -292,7 +292,7 @@ class ZenithalParser
     unless @source[@pointer += 1] == BRACKET_START
       raise ZenithalParseError.new
     end
-    children = parse
+    children = parse_nodes
     unless @source[@pointer += 1] == BRACKET_END
       raise ZenithalParseError.new
     end
