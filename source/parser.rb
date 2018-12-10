@@ -186,10 +186,10 @@ class ZenithalParser
   def create_instruction(target, attributes, children)
     instruction = nil
     if target == SYSTEM_INSTRUCTION_NAME
-      @version = attributes["version"]
-      @brace_name = attributes["brace"]
-      @bracket_name = attributes["bracket"]
-      @slash_name = attributes["slash"]
+      @version = attributes["version"] if attributes["version"]
+      @brace_name = attributes["brace"] if attributes["brace"]
+      @bracket_name = attributes["bracket"] if attributes["bracket"]
+      @slash_name = attributes["slash"] if attributes["slash"]
     elsif target == "xml"
       instruction = XMLDecl.new
       instruction.version = attributes["version"] || XMLDecl::DEFAULT_VERSION
