@@ -67,8 +67,8 @@ This will become:
 ```xml
 <tag>foo bar  baz</tag>
 ```
-If the tag name is marked with `!!`, the same number of trailing whitespaces as that of the least-indented line are also removed from each line.
-This may be useful, if you want to insert indentations to the inner text for legibility but do not want them left in the output, for example when marking up a `<pre>` tag of HTML. 
+If the tag name is marked with `!!`, the same number of leading whitespaces as that of the least-indented line are also removed from each line.
+This may be useful, if you want to insert indentations to the inner text for legibility but do not want them left in the output, for example when marking up a `<pre>` tag of XHTML. 
 ```
 \div<
   \pre!!<
@@ -88,7 +88,6 @@ This will become:
 foobarbazfoobarbaz</pre>
 </div>
 ```
-But this is not yet implemented…!
 
 ### Processing Instruction
 The syntax for processing instructions is identical with that for ordinary tags, except that the tag name must end with `?`.
