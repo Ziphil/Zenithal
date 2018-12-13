@@ -98,6 +98,32 @@ class ZenithalParser
         children[-1] = Text.new(children[-1].to_s.rstrip, true, nil, true)
       end
     end
+    if option[:trim_indents]
+      texts = []
+      if children[-1].is_a?(Text)
+        children[-1].value = children[-1].value.rstrip
+      end
+      children.each do |child|
+        case child
+        when Text
+          texts << child
+        when Parent
+          texts.concat(child.all_texts)
+        end
+      end
+      indent_length = 10000
+      texts.each do |text|
+        text.value.scan(/\n(\x20+)/) do |match|
+          indent_length = [match[0].length, indent_length].min
+        end
+      end
+      texts.each do |text|
+        text.value = text.value.gsub(/\n(\x20+)/){"\n" + " " * ($1.length - indent_length)}
+      end
+      if children[0].is_a?(Text)
+        children[0].value = children[0].value.lstrip
+      end
+    end
     return children
   end
 
@@ -161,9 +187,10 @@ class ZenithalParser
       option[:instruction] = true
     end
     if marks.include?(TRIM_MARK)
-      option[:trim] = true
-      if marks.count(TRIM_MARK) >= 2
-        option[:hard_trim] = true
+      if marks.count(TRIM_MARK) <= 1
+        option[:trim] = true
+      else
+        option[:trim_indents] = true
       end
     end
     if marks.include?(VERBAL_MARK)
@@ -369,17 +396,7 @@ class ZenithalParser
         @pointer -= 1
         string << parse_entity
       else
-        if option[:hard_trim]
-          if char =~ /\s/
-            space << char
-          else
-            string << space unless space.include?("\n")
-            space = ""
-            string << char
-          end
-        else
-          string << char
-        end
+        string << char
       end
     end
     text = Text.new(string, true, nil, true)
@@ -441,6 +458,24 @@ class ZenithalParser
 
   def self.valid_char?(char)
     return VALID_START_CHARS.any?{|s| s === char.ord} || VALID_MIDDLE_CHARS.any?{|s| s === char.ord}
+  end
+
+end
+
+
+class Parent
+
+  def all_texts
+    texts = []
+    self.children.each do |child|
+      case child
+      when Text
+        texts << child
+      when Parent
+        texts.concat(child.all_texts)
+      end
+    end
+    return texts
   end
 
 end
