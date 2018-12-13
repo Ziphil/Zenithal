@@ -90,40 +90,6 @@ class ZenithalParser
       end
     end
     children.compact!
-    if option[:trim]
-      if children[0].is_a?(Text)
-        children[0] = Text.new(children[0].to_s.lstrip, true, nil, true)
-      end
-      if children[-1].is_a?(Text)
-        children[-1] = Text.new(children[-1].to_s.rstrip, true, nil, true)
-      end
-    end
-    if option[:trim_indents]
-      texts = []
-      if children[-1].is_a?(Text)
-        children[-1].value = children[-1].value.rstrip
-      end
-      children.each do |child|
-        case child
-        when Text
-          texts << child
-        when Parent
-          texts.concat(child.all_texts)
-        end
-      end
-      indent_length = 10000
-      texts.each do |text|
-        text.value.scan(/\n(\x20+)/) do |match|
-          indent_length = [match[0].length, indent_length].min
-        end
-      end
-      texts.each do |text|
-        text.value = text.value.gsub(/\n(\x20+)/){"\n" + " " * ($1.length - indent_length)}
-      end
-      if children[0].is_a?(Text)
-        children[0].value = children[0].value.lstrip
-      end
-    end
     return children
   end
 
@@ -146,6 +112,12 @@ class ZenithalParser
         children = [parse_verbal_text(option)]
       else
         children = parse_nodes(option)
+      end
+      if option[:trim_spaces]
+        trim_spaces(children)
+      end
+      if option[:trim_indents]
+        trim_indents(children)
       end
       unless @source[@pointer += 1] == CONTENT_END
         raise ZenithalParseError.new
@@ -188,7 +160,7 @@ class ZenithalParser
     end
     if marks.include?(TRIM_MARK)
       if marks.count(TRIM_MARK) <= 1
-        option[:trim] = true
+        option[:trim_spaces] = true
       else
         option[:trim_indents] = true
       end
@@ -450,6 +422,42 @@ class ZenithalParser
     end
     @pointer -= 1
     return count
+  end
+
+  def trim_spaces(children)
+    if children[0].is_a?(Text)
+      children[0].value = children[0].value.lstrip
+    end
+    if children[-1].is_a?(Text)
+      children[-1].value = children[-1].value.rstrip
+    end
+  end
+
+  def trim_indents(children)
+    texts = []
+    if children[-1].is_a?(Text)
+      children[-1].value = children[-1].value.rstrip
+    end
+    children.each do |child|
+      case child
+      when Text
+        texts << child
+      when Parent
+        texts.concat(child.all_texts)
+      end
+    end
+    indent_length = 10000
+    texts.each do |text|
+      text.value.scan(/\n(\x20+)/) do |match|
+        indent_length = [match[0].length, indent_length].min
+      end
+    end
+    texts.each do |text|
+      text.value = text.value.gsub(/\n(\x20+)/){"\n" + " " * ($1.length - indent_length)}
+    end
+    if children[0].is_a?(Text)
+      children[0].value = children[0].value.lstrip
+    end
   end
 
   def self.valid_start_char?(char)
