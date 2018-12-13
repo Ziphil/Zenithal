@@ -346,6 +346,8 @@ class ZenithalParser
           string << char
         end
       end
+    else
+      raise ZenithalParseError.new
     end
     comment = Comment.new(" #{string.strip} ")
     return comment
