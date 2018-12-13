@@ -250,8 +250,12 @@ class ZenithalParser
       if char == ATTRIBUTE_EQUAL || char =~ /\s/
         @pointer -= 1
         break
-      else
+      elsif key.empty? && ZenithalParser.valid_start_char?(char)
         key << char
+      elsif !key.empty? && ZenithalParser.valid_char?(char)
+        key << char
+      else
+        raise ZenithalParseError.new
       end
     end
     return key
