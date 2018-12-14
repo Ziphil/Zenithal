@@ -268,6 +268,9 @@ class ZenithalParser
     while (char = @source[@pointer += 1]) != nil
       if char == ATTRIBUTE_VALUE_END
         break
+      elsif char == ENTITY_START
+        @pointer -= 1
+        value << parse_entity
       else
         value << char
       end
