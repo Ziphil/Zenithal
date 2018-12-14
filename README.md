@@ -32,7 +32,7 @@ This will be converted to:
 <tag attr="value" foo="bar">content</tag>
 ```
 
-An empty element is marked up like `\tag<>`, but it can be also represented by `\tag>`.
+An empty element is marked up like `\tag<>`, but it can be abbreviated to `\tag>`.
 ```
 \tag> \tag|attr="value"|>
 ```
@@ -47,31 +47,11 @@ Of course, you can place any number of elements inside another element, as is us
 ```
 
 ### Changing Treatment of the Inner Text
-If the tag name is suffixed with `~`, the inner text is treated as a textual data without any markup.
-It shows similar behaviour to CDATA sections in XML, but entity references are valid in the tag with `~`.
-```
-\tag~<entity: &lt; \inner|attr="val"|<foo&gt;>
-```
-This will become:
-```xml
-<tag>entity: &lt; \inner|attr=&quot;val&quot;|&lt;foo&gt;</tag>
-```
-Note that the inner text ends at `>`, so if you want to include `>` in the inner text, it must be escaped.
-
-If the tag name is marked with `!`, the leading and trailing whitespaces (including newlines) of the inner text are removed.
-```
-\tag!<   foo bar  baz 
-    >
-```
-This will become:
-```xml
-<tag>foo bar  baz</tag>
-```
-If the tag name is marked with `!!`, the same number of leading whitespaces as that of the least-indented line are also removed from each line.
+If the tag name is marked with `!`, the same number of leading whitespaces as that of the least-indented line are also removed from each line.
 This may be useful, if you want to insert indentations to the inner text for legibility but do not want them left in the output, for example when marking up a `<pre>` tag of XHTML. 
 ```
 \div<
-  \pre!!<
+  \pre!<
     foobarbazfoobarbaz
       foobarbaz
         foobarbaz
@@ -89,6 +69,57 @@ foobarbazfoobarbaz</pre>
 </div>
 ```
 
+If the tag name is suffixed with `~`, the inner text is treated as a textual data without any markup.
+It shows similar behaviour to CDATA sections in XML, but entity references are valid in the tag with `~`.
+```
+\tag~<entity: &lt; \inner|attr="val"|<foo&gt;>
+```
+This will become:
+```xml
+<tag>entity: &lt; \inner|attr=&quot;val&quot;|&lt;foo&gt;</tag>
+```
+Note that the inner text ends at `>`, so if you want to include `>` in the inner text, it must be escaped.
+
+These options can be used simultaneously, regardless of the order of the suffixes.
+```
+\pre~!<
+  public static void main(String... args) {
+    for (int i = 0 ; i &lt> 5 ; i ++) {
+      System.out.println("Hello");
+    }
+    System.out.println("End");
+  }
+>
+```
+This will be:
+```xml
+<pre>public static void main(String... args) {
+  for (int i = 0 ; i &lt; 5 ; i ++) {
+    System.out.println(&quot;Hello&quot;);
+  }
+  System.out.println(&quot;End&quot;);
+}</pre>
+```
+
+### Syntactic Sugar for Multiple Elements
+When consecutive elements share the same name, you can omit the name of the second and any subsequent elements, by putting `*` after the name of the first one.
+```
+\tag*<first><second><third>
+```
+This will be converted to:
+```xml
+<tag>first</tag><tag>second</tag><tag>third</tag>
+```
+
+If the first element, suffixed with `*`, has some attributes, the rest of the elements all have the same attributes.
+```
+\tag*|attr="val"|<first><second><third>
+```
+This will be:
+```xml
+<tag attr="val">first</tag><tag attr="val">second</tag><tag attr="val">third</tag>
+```
+
 ### Processing Instruction
 The syntax for processing instructions is identical with that for ordinary tags, except that the tag name must end with `?`.
 ```
@@ -100,12 +131,14 @@ This will be converted to:
 ```
 
 The content of processing instructions are in many cases written by pseudo-attributes.
-In ZenML, these pseudo-attributes can be written in the same way as ordinary attributes, so the following ZenML document will be converted to the same XML as above.
+In ZenML, these pseudo-attributes can be written in the same way as ordinary attributes, so the following ZenML code will be converted to the same XML as above.
 ```
 \xml?|version="1.0",encoding="UTF-8"|>
 ```
 Notice that there must be `,` between attribute-value pairs when you use this syntax.
 Moreover, `>` is needed at the end of the element to indicate that the content is empty.
+
+The XML declaration is not a processing instruction, but it is expressed by using this syntax.
 
 ### ZenML Declaration
 ZenML documents should (but not have to) start with an ZenML declaration, as follows:
@@ -114,19 +147,28 @@ ZenML documents should (but not have to) start with an ZenML declaration, as fol
 ```
 ZeML declarations are only used during processing, and removed in the output XML.
 
+The version and the element name for special tags (explained below) must be declared in the pseudo-attribute style.
+So `\zml?<version="1.0">` is not valid.
+
 ### Entity Reference
-The syntax for entity references are the same as XML, but there are some additional predefined entities:
+An entity reference begins with `&`, but ends with `>` unlike XML.
+The table below shows predefined entities which can be used in ZenML documents.
 
 | entity | character |
 |:------:|:---------:|
-| `&lcub;`, `&lbrace;` | `{` |
-| `&rcub;`, `&rbrace;` | `}` |
-| `&lsqb;`, `&lbrack;` | `[` |
-| `&rsqb;`, `&rbrack;` | `]` |
-| `&sol;` | `/` |
-| `&bsol;` | `\` |
-| `&verbar;`, `&vert;` | `\|` |
-| `&num;` | `#` |
+| `&amp>` | `&` |
+| `&lt>` | `>` |
+| `&gt>` | `<` |
+| `&apos>` | `'` |
+| `&quot>` | `"` |
+| `&lcub>`, `&lbrace>` | `{` |
+| `&rcub>`, `&rbrace>` | `}` |
+| `&lsqb>`, `&lbrack>` | `[` |
+| `&rsqb>`, `&rbrack>` | `]` |
+| `&sol>` | `/` |
+| `&bsol>` | `\` |
+| `&verbar>`, `&vert>` | `\|` |
+| `&num>` | `#` |
 
 ### Special Tag
 Braces (`{}`), brackets (`[]`) and slashes (`//`) are treated as a special tag in ZenML, and converted to certain elements in XML.
@@ -175,6 +217,9 @@ If you want a XML string instead of a syntax tree, use formatters of `rexml/docu
 
 The following example code converts a ZenML file to an XML file:
 ```ruby
+# the parser uses classes offered by rexml/document library
+require 'rexml/document'
+include REXML
 # read a ZenML source from a file
 source = File.read("sample.zml")
 parser = ZenithalParser.new(source)
