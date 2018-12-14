@@ -67,7 +67,7 @@ class ZenithalParser
     while (char = @source[@pointer += 1]) != nil
       if char == TAG_START
         @pointer -= 1
-        children << parse_element
+        children.concat(parse_element)
       elsif @brace_name && char == BRACE_START
         @pointer -= 1
         children << parse_brace
@@ -88,7 +88,6 @@ class ZenithalParser
         children << parse_text(option)
       end
     end
-    children.compact!
     return children
   end
 
@@ -98,7 +97,7 @@ class ZenithalParser
     end
     name, option = parse_element_name
     skip_spaces
-    attributes, children = {}, []
+    attributes, children_list = {}, []
     char = @source[@pointer += 1]
     if char == ATTRIBUTE_START
       @pointer -= 1
@@ -107,35 +106,50 @@ class ZenithalParser
       char = @source[@pointer += 1]
     end
     if char == CONTENT_START
-      if option[:verbal] || option[:instruction]
-        children = [parse_verbal_text(option)]
-      else
-        children = parse_nodes(option)
-      end
-      if option[:trim_spaces]
-        trim_spaces(children)
-      end
-      if option[:trim_indents]
-        trim_indents(children)
-      end
-      unless @source[@pointer += 1] == CONTENT_END
-        raise ZenithalParseError.new
+      loop do
+        children = []
+        if option[:verbal] || option[:instruction]
+          children = [parse_verbal_text(option)]
+        else
+          children = parse_nodes(option)
+        end
+        if option[:trim_spaces]
+          trim_spaces(children)
+        end
+        if option[:trim_indents]
+          trim_indents(children)
+        end
+        children_list << children
+        unless @source[@pointer += 1] == CONTENT_END
+          raise ZenithalParseError.new
+        end
+        space_count = skip_spaces
+        unless @source[@pointer += 1] == CONTENT_START
+          @pointer -= space_count + 1
+          break
+        end
       end
     elsif char == CONTENT_END
-      children = []
+      children_list << []
     else
       raise ZenithalParseError.new
     end
-    element = nil
+    elements = []
     if option[:instruction]
-      element = create_instruction(name, attributes, children)
+      if children_list.size > 1
+        raise ZenithalParseError.new
+      end
+      elements = create_instruction(name, attributes, children_list.first)
       if name == SYSTEM_INSTRUCTION_NAME
         skip_spaces
       end
     else
-      element = create_element(name, attributes, children)
+      if children_list.size > 1
+        raise ZenithalParseError.new
+      end
+      elements = create_element(name, attributes, children_list)
     end
-    return element
+    return elements
   end
 
   def parse_element_name
@@ -170,19 +184,23 @@ class ZenithalParser
     return [name, option]
   end
 
-  def create_element(name, attributes, children)
-    element = Element.new(name)
-    attributes.each do |key, value|
-      element.add_attribute(key, value)
+  def create_element(name, attributes, children_list)
+    elements = []
+    children_list.each do |children|
+      element = Element.new(name)
+      attributes.each do |key, value|
+        element.add_attribute(key, value)
+      end
+      children.each do |child|
+        element.add(child)
+      end
+      elements << element
     end
-    children.each do |child|
-      element.add(child)
-    end
-    return element
+    return elements
   end
 
   def create_instruction(target, attributes, children)
-    instruction = nil
+    instructions = []
     if target == SYSTEM_INSTRUCTION_NAME
       @version = attributes["version"] if attributes["version"]
       @brace_name = attributes["brace"] if attributes["brace"]
@@ -193,6 +211,7 @@ class ZenithalParser
       instruction.version = attributes["version"] || XMLDecl::DEFAULT_VERSION
       instruction.encoding = attributes["encoding"]
       instruction.standalone = attributes["standalone"]
+      instructions << instruction
     else
       instruction = Instruction.new(target)
       actual_contents = []
@@ -203,8 +222,9 @@ class ZenithalParser
         actual_contents << children[0]
       end
       instruction.content = actual_contents.join(" ")
+      instructions << instruction
     end
-    return instruction
+    return instructions
   end
 
   def parse_attributes
