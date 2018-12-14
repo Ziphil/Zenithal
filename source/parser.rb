@@ -114,9 +114,6 @@ class ZenithalParser
         else
           children = parse_nodes(option)
         end
-        if option[:trim_spaces]
-          trim_spaces(children)
-        end
         if option[:trim_indents]
           trim_indents(children)
         end
@@ -173,11 +170,7 @@ class ZenithalParser
       option[:instruction] = true
     end
     if marks.include?(TRIM_MARK)
-      if marks.count(TRIM_MARK) <= 1
-        option[:trim_spaces] = true
-      else
-        option[:trim_indents] = true
-      end
+      option[:trim_indents] = true
     end
     if marks.include?(VERBAL_MARK)
       option[:verbal] = true
