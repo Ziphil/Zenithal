@@ -33,10 +33,9 @@ class ZenithalParser
   TRIM_MARK = "!"
   VERBAL_MARK = "~"
   SYSTEM_INSTRUCTION_NAME = "zml"
-  ENTITIES = {"amp" => "&amp;", "lt" => "&lt;", "gt" => "&gt;", "apos" => "&apos;", "quot" => "&quot;",
+  ENTITIES = {"amp" => "&", "lt" => "<", "gt" => ">", "apos" => "'", "quot" => "\"",
               "lcub" => "{",  "rcub" => "}", "lbrace" => "{",  "rbrace" => "}", "lsqb" => "[",  "rsqb" => "]", "lbrack" => "[",  "rbrack" => "]",
               "sol" => "/", "bsol" => "\\", "verbar" => "|", "vert" => "|", "num" => "#"}
-  INVERSE_ENTITIES = {"&" => "&amp;", "<" => "&lt;", ">" => "&gt;", "'" => "&apos;", "\"" => "&quot;"}
   VALID_START_CHARS = [0x3A, 0x41..0x5A, 0x5F, 0x61..0x7A, 0xC0..0xD6, 0xD8..0xF6, 0xF8..0x2FF, 0x370..0x37D, 0x37F..0x1FFF, 0x200C..0x200D, 
                        0x2070..0x218F, 0x2C00..0x2FEF, 0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF]
   VALID_MIDDLE_CHARS = [0x2D, 0x2E, 0x30..0x39, 0xB7, 0x0300..0x036F, 0x203F..0x2040]
@@ -377,7 +376,7 @@ class ZenithalParser
         string << char
       end
     end
-    text = Text.new(string, true, nil, true)
+    text = Text.new(string, true, nil, false)
     return text
   end
 
@@ -391,14 +390,10 @@ class ZenithalParser
         @pointer -= 1
         string << parse_entity
       else
-        if INVERSE_ENTITIES.key?(char)
-          string << INVERSE_ENTITIES[char]
-        else
-          string << char
-        end
+        string << char
       end
     end
-    text = Text.new(string, true, nil, true)
+    text = Text.new(string, true, nil, false)
     return text
   end
 
@@ -417,7 +412,12 @@ class ZenithalParser
     unless @source[@pointer] == ENTITY_END
       raise ZenithalParseError.new
     end
-    result = ENTITIES[content] || "&#{content};"
+    result = ""
+    if ENTITIES.key?(content)
+      result << ENTITIES[content]
+    else
+      raise ZenithalParseError.new
+    end
     return result
   end
 
