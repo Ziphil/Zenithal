@@ -27,7 +27,7 @@ class ZenithalParser
   SLASH_START = "/"
   SLASH_END = "/"
   ENTITY_START = "&"
-  ENTITY_END = ";"
+  ENTITY_END = ">"
   COMMENT_DELIMITER = "#"
   INSTRUCTION_MARK = "?"
   TRIM_MARK = "!"
