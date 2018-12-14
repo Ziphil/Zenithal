@@ -72,11 +72,11 @@ foobarbazfoobarbaz</pre>
 If the tag name is suffixed with `~`, the inner text is treated as a textual data without any markup.
 It shows similar behaviour to CDATA sections in XML, but entity references are valid in the tag with `~`.
 ```
-\tag~<entity: &lt; \inner|attr="val"|<foo&gt;>
+\tag~<entity: &lt> \inner|attr="val"|<foo&gt> ← this must be escaped>
 ```
 This will become:
 ```xml
-<tag>entity: &lt; \inner|attr=&quot;val&quot;|&lt;foo&gt;</tag>
+<tag>entity: &lt; \inner|attr=&quot;val&quot;|&lt;foo&gt; ← this must be escaped</tag>
 ```
 Note that the inner text ends at `>`, so if you want to include `>` in the inner text, it must be escaped.
 
@@ -84,7 +84,7 @@ These options can be used simultaneously, regardless of the order of the suffixe
 ```
 \pre~!<
   public static void main(String... args) {
-    for (int i = 0 ; i &lt> 5 ; i ++) {
+    for (int i = 0 ; i < 5 ; i ++) {
       System.out.println("Hello");
     }
     System.out.println("End");
@@ -148,7 +148,7 @@ ZenML documents should (but not have to) start with an ZenML declaration, as fol
 ZeML declarations are only used during processing, and removed in the output XML.
 
 The version and the element name for special tags (explained below) must be declared in the pseudo-attribute style.
-So `\zml?<version="1.0">` is not valid.
+Thus, for example, `\zml?<version="1.0">` is not valid.
 
 ### Entity Reference
 An entity reference begins with `&`, but ends with `>` unlike XML.
