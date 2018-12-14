@@ -32,6 +32,7 @@ class ZenithalParser
   INSTRUCTION_MARK = "?"
   TRIM_MARK = "!"
   VERBAL_MARK = "~"
+  MULTIPLE_MARK = "*"
   SYSTEM_INSTRUCTION_NAME = "zml"
   ENTITIES = {"amp" => "&", "lt" => "<", "gt" => ">", "apos" => "'", "quot" => "\"",
               "lcub" => "{",  "rcub" => "}", "lbrace" => "{",  "rbrace" => "}", "lsqb" => "[",  "rsqb" => "]", "lbrack" => "[",  "rbrack" => "]",
@@ -136,7 +137,7 @@ class ZenithalParser
     end
     elements = []
     if option[:instruction]
-      if children_list.size > 1
+      unless children_list.size <= 1
         raise ZenithalParseError.new
       end
       elements = create_instruction(name, attributes, children_list.first)
@@ -144,7 +145,7 @@ class ZenithalParser
         skip_spaces
       end
     else
-      if children_list.size > 1
+      unless option[:multiple] || children_list.size <= 1
         raise ZenithalParseError.new
       end
       elements = create_element(name, attributes, children_list)
@@ -158,7 +159,7 @@ class ZenithalParser
       if char == ATTRIBUTE_START || char == CONTENT_START || char == CONTENT_END || char =~ /\s/
         @pointer -= 1
         break
-      elsif char == INSTRUCTION_MARK || char == TRIM_MARK || char == VERBAL_MARK
+      elsif char == INSTRUCTION_MARK || char == TRIM_MARK || char == VERBAL_MARK || char == MULTIPLE_MARK
         marks << char
       elsif name.empty? && marks.empty? && ZenithalParser.valid_start_char?(char)
         name << char
@@ -180,6 +181,9 @@ class ZenithalParser
     end
     if marks.include?(VERBAL_MARK)
       option[:verbal] = true
+    end
+    if marks.include?(MULTIPLE_MARK)
+      option[:multiple] = true
     end
     return [name, option]
   end
