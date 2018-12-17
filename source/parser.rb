@@ -229,16 +229,17 @@ class ZenithalParser
     end
     attributes = {}
     current_key = nil
-    while char = @source.read
+    loop do
+      key, value = parse_attribute
+      attributes[key] = value
+      char = @source.read
       if char == ATTRIBUTE_SEPARATOR
         skip_spaces
       elsif char == ATTRIBUTE_END
         @source.unread
         break
       else
-        @source.unread
-        key, value = parse_attribute
-        attributes[key] = value
+        raise ZenithalParseError.new(@source)
       end
     end
     unless @source.read == ATTRIBUTE_END
