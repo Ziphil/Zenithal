@@ -64,7 +64,7 @@ class ZenithalParser
 
   def parse_nodes(option = {})
     children = []
-    while (char = @source.read) != nil
+    while char = @source.read
       if char == TAG_START
         @source.unread
         children.concat(parse_element)
@@ -151,7 +151,7 @@ class ZenithalParser
 
   def parse_element_name
     name, marks, option = "", [], {}
-    while (char = @source.read) != nil
+    while char = @source.read
       if char == ATTRIBUTE_START || char == CONTENT_START || char == CONTENT_END || char =~ /\s/
         @source.unread
         break
@@ -229,7 +229,7 @@ class ZenithalParser
     end
     attributes = {}
     current_key = nil
-    while (char = @source.read) != nil
+    while char = @source.read
       if char == ATTRIBUTE_SEPARATOR
         skip_spaces
       elsif char == ATTRIBUTE_END
@@ -261,7 +261,7 @@ class ZenithalParser
 
   def parse_attribute_key
     key = ""
-    while (char = @source.read) != nil
+    while char = @source.read
       if char == ATTRIBUTE_EQUAL || char =~ /\s/
         @source.unread
         break
@@ -281,7 +281,7 @@ class ZenithalParser
       raise ZenithalParseError.new(@source)
     end
     value = ""
-    while (char = @source.read) != nil
+    while char = @source.read
       if char == ATTRIBUTE_VALUE_END
         break
       elsif char == ENTITY_START
@@ -346,7 +346,7 @@ class ZenithalParser
     char = @source.read
     string = ""
     if char == COMMENT_DELIMITER
-      while (char = @source.read) != nil
+      while char = @source.read
         if char == "\n"
           @source.unread
           break
@@ -355,7 +355,7 @@ class ZenithalParser
         end
       end
     elsif char == CONTENT_START
-      while (char = @source.read) != nil
+      while char = @source.read
         if char == CONTENT_END
           next_char = @source.read
           if next_char == COMMENT_DELIMITER
@@ -378,7 +378,7 @@ class ZenithalParser
   def parse_text(option = {})
     string = ""
     space = ""
-    while (char = @source.read) != nil
+    while char = @source.read
       if char == TAG_START || (@brace_name && char == BRACE_START) || (@bracket_name && char == BRACKET_START) || (@slash_name && char == SLASH_START)
         @source.unread
         break
@@ -401,7 +401,7 @@ class ZenithalParser
 
   def parse_verbal_text(option = {})
     string = ""
-    while (char = @source.read) != nil
+    while char = @source.read
       if char == CONTENT_END
         @source.unread
         break
@@ -421,7 +421,7 @@ class ZenithalParser
       raise ZenithalParseError.new(@source)
     end
     content = ""
-    while (char = @source.read) != nil
+    while char = @source.read
       if char == ENTITY_END
         break
       else
