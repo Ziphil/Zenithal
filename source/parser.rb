@@ -46,12 +46,11 @@ class ZenithalParser
   attr_writer :slash_name
 
   def initialize(source)
-    @source = source.chars
+    @source = StringReader.new(source)
     @version = nil
     @brace_name = nil
     @bracket_name = nil
     @slash_name = nil
-    @pointer = -1
   end
 
   def parse
@@ -65,27 +64,27 @@ class ZenithalParser
 
   def parse_nodes(option = {})
     children = []
-    while (char = @source[@pointer += 1]) != nil
+    while (char = @source.read) != nil
       if char == TAG_START
-        @pointer -= 1
+        @source.unread
         children.concat(parse_element)
       elsif @brace_name && char == BRACE_START
-        @pointer -= 1
+        @source.unread
         children << parse_brace
       elsif @bracket_name && char == BRACKET_START
-        @pointer -= 1
+        @source.unread
         children << parse_bracket
       elsif @slash_name && !option[:in_slash] && char == SLASH_START
-        @pointer -= 1
+        @source.unread
         children << parse_slash
       elsif char == COMMENT_DELIMITER
-        @pointer -= 1
+        @source.unread
         children << parse_comment
       elsif char == CONTENT_END || (@brace_name && char == BRACE_END) || (@bracket_name && char == BRACKET_END) || (@slash_name && char == SLASH_END)
-        @pointer -= 1
+        @source.unread
         break
       else
-        @pointer -= 1
+        @source.unread
         children << parse_text(option)
       end
     end
@@ -93,18 +92,18 @@ class ZenithalParser
   end
 
   def parse_element
-    unless @source[@pointer += 1] == TAG_START
-      raise ZenithalParseError.new
+    unless @source.read == TAG_START
+      raise ZenithalParseError.new(@source)
     end
     name, option = parse_element_name
     skip_spaces
     attributes, children_list = {}, []
-    char = @source[@pointer += 1]
+    char = @source.read
     if char == ATTRIBUTE_START
-      @pointer -= 1
+      @source.unread
       attributes = parse_attributes
       skip_spaces
-      char = @source[@pointer += 1]
+      char = @source.read
     end
     if char == CONTENT_START
       loop do
@@ -118,24 +117,24 @@ class ZenithalParser
           trim_indents(children)
         end
         children_list << children
-        unless @source[@pointer += 1] == CONTENT_END
-          raise ZenithalParseError.new
+        unless @source.read == CONTENT_END
+          raise ZenithalParseError.new(@source)
         end
         space_count = skip_spaces
-        unless @source[@pointer += 1] == CONTENT_START
-          @pointer -= space_count + 1
+        unless @source.read == CONTENT_START
+          @source.unread(space_count + 1)
           break
         end
       end
     elsif char == CONTENT_END
       children_list << []
     else
-      raise ZenithalParseError.new
+      raise ZenithalParseError.new(@source)
     end
     elements = []
     if option[:instruction]
       unless children_list.size <= 1
-        raise ZenithalParseError.new
+        raise ZenithalParseError.new(@source)
       end
       elements = create_instruction(name, attributes, children_list.first)
       if name == SYSTEM_INSTRUCTION_NAME
@@ -143,7 +142,7 @@ class ZenithalParser
       end
     else
       unless option[:multiple] || children_list.size <= 1
-        raise ZenithalParseError.new
+        raise ZenithalParseError.new(@source)
       end
       elements = create_element(name, attributes, children_list)
     end
@@ -152,9 +151,9 @@ class ZenithalParser
 
   def parse_element_name
     name, marks, option = "", [], {}
-    while (char = @source[@pointer += 1]) != nil
+    while (char = @source.read) != nil
       if char == ATTRIBUTE_START || char == CONTENT_START || char == CONTENT_END || char =~ /\s/
-        @pointer -= 1
+        @source.unread
         break
       elsif char == INSTRUCTION_MARK || char == TRIM_MARK || char == VERBAL_MARK || char == MULTIPLE_MARK
         marks << char
@@ -163,7 +162,7 @@ class ZenithalParser
       elsif !name.empty? && marks.empty? && ZenithalParser.valid_char?(char)
         name << char
       else
-        raise ZenithalParseError.new
+        raise ZenithalParseError.new(@source)
       end
     end
     if marks.include?(INSTRUCTION_MARK)
@@ -225,25 +224,25 @@ class ZenithalParser
   end
 
   def parse_attributes
-    unless @source[@pointer += 1] == ATTRIBUTE_START
-      raise ZenithalParseError.new
+    unless @source.read == ATTRIBUTE_START
+      raise ZenithalParseError.new(@source)
     end
     attributes = {}
     current_key = nil
-    while (char = @source[@pointer += 1]) != nil
+    while (char = @source.read) != nil
       if char == ATTRIBUTE_SEPARATOR
         skip_spaces
       elsif char == ATTRIBUTE_END
-        @pointer -= 1
+        @source.unread
         break
       else
-        @pointer -= 1
+        @source.unread
         key, value = parse_attribute
         attributes[key] = value
       end
     end
-    unless @source[@pointer += 1] == ATTRIBUTE_END
-      raise ZenithalParseError.new
+    unless @source.read == ATTRIBUTE_END
+      raise ZenithalParseError.new(@source)
     end
     return attributes
   end
@@ -251,8 +250,8 @@ class ZenithalParser
   def parse_attribute
     key = parse_attribute_key
     skip_spaces
-    unless @source[@pointer += 1] == ATTRIBUTE_EQUAL
-      raise ZenithalParseError.new
+    unless @source.read == ATTRIBUTE_EQUAL
+      raise ZenithalParseError.new(@source)
     end
     skip_spaces
     value = parse_attribute_value
@@ -262,31 +261,31 @@ class ZenithalParser
 
   def parse_attribute_key
     key = ""
-    while (char = @source[@pointer += 1]) != nil
+    while (char = @source.read) != nil
       if char == ATTRIBUTE_EQUAL || char =~ /\s/
-        @pointer -= 1
+        @source.unread
         break
       elsif key.empty? && ZenithalParser.valid_start_char?(char)
         key << char
       elsif !key.empty? && ZenithalParser.valid_char?(char)
         key << char
       else
-        raise ZenithalParseError.new
+        raise ZenithalParseError.new(@source)
       end
     end
     return key
   end
 
   def parse_attribute_value
-    unless @source[@pointer += 1] == ATTRIBUTE_VALUE_START
-      raise ZenithalParseError.new
+    unless @source.read == ATTRIBUTE_VALUE_START
+      raise ZenithalParseError.new(@source)
     end
     value = ""
-    while (char = @source[@pointer += 1]) != nil
+    while (char = @source.read) != nil
       if char == ATTRIBUTE_VALUE_END
         break
       elsif char == ENTITY_START
-        @pointer -= 1
+        @source.unread
         value << parse_entity
       else
         value << char
@@ -296,12 +295,12 @@ class ZenithalParser
   end
 
   def parse_brace
-    unless @source[@pointer += 1] == BRACE_START
-      raise ZenithalParseError.new
+    unless @source.read == BRACE_START
+      raise ZenithalParseError.new(@source)
     end
     children = parse_nodes
-    unless @source[@pointer += 1] == BRACE_END
-      raise ZenithalParseError.new
+    unless @source.read == BRACE_END
+      raise ZenithalParseError.new(@source)
     end
     element = Element.new(@brace_name)
     children.each do |child|
@@ -311,12 +310,12 @@ class ZenithalParser
   end
 
   def parse_bracket
-    unless @source[@pointer += 1] == BRACKET_START
-      raise ZenithalParseError.new
+    unless @source.read == BRACKET_START
+      raise ZenithalParseError.new(@source)
     end
     children = parse_nodes
-    unless @source[@pointer += 1] == BRACKET_END
-      raise ZenithalParseError.new
+    unless @source.read == BRACKET_END
+      raise ZenithalParseError.new(@source)
     end
     element = Element.new(@bracket_name)
     children.each do |child|
@@ -326,12 +325,12 @@ class ZenithalParser
   end
 
   def parse_slash
-    unless @source[@pointer += 1] == SLASH_START
-      raise ZenithalParseError.new
+    unless @source.read == SLASH_START
+      raise ZenithalParseError.new(@source)
     end
     children = parse_nodes({:in_slash => true})
-    unless @source[@pointer += 1] == SLASH_END
-      raise ZenithalParseError.new
+    unless @source.read == SLASH_END
+      raise ZenithalParseError.new(@source)
     end
     element = Element.new(@slash_name)
     children.each do |child|
@@ -341,36 +340,36 @@ class ZenithalParser
   end
 
   def parse_comment
-    unless @source[@pointer += 1] == COMMENT_DELIMITER
-      raise ZenithalParseError.new
+    unless @source.read == COMMENT_DELIMITER
+      raise ZenithalParseError.new(@source)
     end
-    char = @source[@pointer += 1]
+    char = @source.read
     string = ""
     if char == COMMENT_DELIMITER
-      while (char = @source[@pointer += 1]) != nil
+      while (char = @source.read) != nil
         if char == "\n"
-          @pointer -= 1
+          @source.unread
           break
         else
           string << char
         end
       end
     elsif char == CONTENT_START
-      while (char = @source[@pointer += 1]) != nil
+      while (char = @source.read) != nil
         if char == CONTENT_END
-          next_char = @source[@pointer += 1]
+          next_char = @source.read
           if next_char == COMMENT_DELIMITER
             break
           else
             string << char
-            @pointer -= 1
+            @source.unread
           end
         else
           string << char
         end
       end
     else
-      raise ZenithalParseError.new
+      raise ZenithalParseError.new(@source)
     end
     comment = Comment.new(" #{string.strip} ")
     return comment
@@ -379,18 +378,18 @@ class ZenithalParser
   def parse_text(option = {})
     string = ""
     space = ""
-    while (char = @source[@pointer += 1]) != nil
+    while (char = @source.read) != nil
       if char == TAG_START || (@brace_name && char == BRACE_START) || (@bracket_name && char == BRACKET_START) || (@slash_name && char == SLASH_START)
-        @pointer -= 1
+        @source.unread
         break
       elsif char == CONTENT_END || (@brace_name && char == BRACE_END) || (@bracket_name && char == BRACKET_END) || (@slash_name && char == SLASH_END)
-        @pointer -= 1
+        @source.unread
         break
       elsif char == COMMENT_DELIMITER
-        @pointer -= 1
+        @source.unread
         break
       elsif char == ENTITY_START
-        @pointer -= 1
+        @source.unread
         string << parse_entity
       else
         string << char
@@ -402,12 +401,12 @@ class ZenithalParser
 
   def parse_verbal_text(option = {})
     string = ""
-    while (char = @source[@pointer += 1]) != nil
+    while (char = @source.read) != nil
       if char == CONTENT_END
-        @pointer -= 1
+        @source.unread
         break
       elsif char == ENTITY_START
-        @pointer -= 1
+        @source.unread
         string << parse_entity
       else
         string << char
@@ -418,35 +417,35 @@ class ZenithalParser
   end
 
   def parse_entity
-    unless @source[@pointer += 1] == ENTITY_START
-      raise ZenithalParseError.new
+    unless @source.read == ENTITY_START
+      raise ZenithalParseError.new(@source)
     end
     content = ""
-    while (char = @source[@pointer += 1]) != nil
+    while (char = @source.read) != nil
       if char == ENTITY_END
         break
       else
         content << char
       end
     end
-    unless @source[@pointer] == ENTITY_END
-      raise ZenithalParseError.new
+    unless char == ENTITY_END
+      raise ZenithalParseError.new(@source)
     end
     result = ""
     if ENTITIES.key?(content)
       result << ENTITIES[content]
     else
-      raise ZenithalParseError.new
+      raise ZenithalParseError.new(@source)
     end
     return result
   end
 
   def skip_spaces
     count = 0
-    while (char = @source[@pointer += 1]) =~ /\s/
+    while (char = @source.read) =~ /\s/
       count += 1
     end
-    @pointer -= 1
+    @source.unread
     return count
   end
 
@@ -497,6 +496,38 @@ class ZenithalParser
 end
 
 
+class StringReader
+
+  attr_reader :lineno
+
+  def initialize(string)
+    @string = string
+    @pos = -1
+    @lineno = 1
+  end
+
+  def read
+    @pos += 1
+    char = @string[@pos]
+    if char == "\n"
+      @lineno += 1
+    end
+    return char
+  end
+
+  def unread(size = 1)
+    size.times do
+      char = @string[@pos]
+      @pos -= 1
+      if char == "\n"
+        @lineno -= 1
+      end
+    end
+  end
+
+end
+
+
 class Parent
 
   def all_texts
@@ -516,5 +547,10 @@ end
 
 
 class ZenithalParseError < StandardError
+
+  def initialize(reader, message = "")
+    whole_message = "[line #{reader.lineno}] #{message}"
+    super(whole_message)
+  end
 
 end
