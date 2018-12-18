@@ -27,6 +27,7 @@ class ZenithalParser
   SLASH_START = "/"
   SLASH_END = "/"
   ENTITY_START = "&"
+  ENTITY_CHAR_SYMBOL = "#"
   ENTITY_END = ">"
   COMMENT_DELIMITER = "#"
   INSTRUCTION_MARK = "?"
@@ -421,22 +422,47 @@ class ZenithalParser
     unless @source.read == ENTITY_START
       raise ZenithalParseError.new(@source)
     end
+    first_char = @source.read
     content = ""
-    while char = @source.read
-      if char == ENTITY_END
-        break
-      else
-        content << char
+    if first_char == ENTITY_CHAR_SYMBOL
+      unless @source.read == "x"
+        raise ZenithalParseError.new(@source)
+      end
+      while char = @source.read
+        if char == ENTITY_END
+          break
+        elsif char =~ /[0-9a-fA-F]/
+          content << char
+        else
+          raise ZenithalParseError.new(@source)
+        end
+      end
+    else
+      @source.unread
+      while char = @source.read
+        if char == ENTITY_END
+          break
+        elsif content.empty? && ZenithalParser.valid_start_char?(char)
+          content << char
+        elsif !content.empty? && ZenithalParser.valid_char?(char)
+          content << char
+        else
+          raise ZenithalParseError.new(@source)
+        end
       end
     end
     unless char == ENTITY_END
       raise ZenithalParseError.new(@source)
     end
     result = ""
-    if ENTITIES.key?(content)
-      result << ENTITIES[content]
+    if first_char == ENTITY_CHAR_SYMBOL
+      result << content.to_i(16).chr(Encoding::UTF_8)
     else
-      raise ZenithalParseError.new(@source)
+      if ENTITIES.key?(content)
+        result << ENTITIES[content]
+      else
+        raise ZenithalParseError.new(@source)
+      end
     end
     return result
   end
