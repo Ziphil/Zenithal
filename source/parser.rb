@@ -215,8 +215,8 @@ class ZenithalParser
       attributes.each do |key, value|
         actual_contents << "#{key}=\"#{value}\""
       end
-      if children[0] && !children[0].empty?
-        actual_contents << children[0]
+      if children.first && !children.first.empty?
+        actual_contents << children.first
       end
       instruction.content = actual_contents.join(" ")
       instructions << instruction
@@ -477,18 +477,18 @@ class ZenithalParser
   end
 
   def trim_spaces(children)
-    if children[0].is_a?(Text)
-      children[0].value = children[0].value.lstrip
+    if children.first.is_a?(Text)
+      children.first.value = children.first.value.lstrip
     end
-    if children[-1].is_a?(Text)
-      children[-1].value = children[-1].value.rstrip
+    if children.last.is_a?(Text)
+      children.last.value = children.last.value.rstrip
     end
   end
 
   def trim_indents(children)
     texts = []
-    if children[-1].is_a?(Text)
-      children[-1].value = children[-1].value.rstrip
+    if children.last.is_a?(Text)
+      children.last.value = children.last.value.rstrip
     end
     children.each do |child|
       case child
@@ -507,8 +507,8 @@ class ZenithalParser
     texts.each do |text|
       text.value = text.value.gsub(/\n(\x20+)/){"\n" + " " * ($1.length - indent_length)}
     end
-    if children[0].is_a?(Text)
-      children[0].value = children[0].value.lstrip
+    if children.first.is_a?(Text)
+      children.first.value = children.first.value.lstrip
     end
   end
 
