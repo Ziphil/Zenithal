@@ -230,6 +230,7 @@ class ZenithalParser
     end
     attributes = {}
     current_key = nil
+    skip_spaces
     loop do
       key, value = parse_attribute
       attributes[key] = value
