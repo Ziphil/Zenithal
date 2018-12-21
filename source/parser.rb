@@ -31,9 +31,9 @@ class ZenithalParser
   ENTITY_END = ">"
   COMMENT_DELIMITER = "#"
   INSTRUCTION_MARK = "?"
-  TRIM_MARK = "!"
+  TRIM_MARK = "*"
   VERBAL_MARK = "~"
-  MULTIPLE_MARK = "*"
+  MULTIPLE_MARK = "+"
   SYSTEM_INSTRUCTION_NAME = "zml"
   ENTITIES = {"amp" => "&", "lt" => "<", "gt" => ">", "apos" => "'", "quot" => "\"",
               "lcub" => "{",  "rcub" => "}", "lbrace" => "{",  "rbrace" => "}", "lsqb" => "[",  "rsqb" => "]", "lbrack" => "[",  "rbrack" => "]",
