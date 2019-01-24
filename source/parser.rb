@@ -253,11 +253,13 @@ class ZenithalParser
   def parse_attribute
     key = parse_attribute_key
     skip_spaces
-    unless @source.read == ATTRIBUTE_EQUAL
-      raise ZenithalParseError.new(@source)
+    if @source.read == ATTRIBUTE_EQUAL
+      skip_spaces
+      value = parse_attribute_value
+    else
+      @source.unread
+      value = key
     end
-    skip_spaces
-    value = parse_attribute_value
     skip_spaces
     return [key, value]
   end
@@ -265,7 +267,7 @@ class ZenithalParser
   def parse_attribute_key
     key = ""
     while char = @source.read
-      if char == ATTRIBUTE_EQUAL || char =~ /\s/
+      if char == ATTRIBUTE_EQUAL || char == ATTRIBUTE_END || char =~ /\s/
         @source.unread
         break
       elsif key.empty? && ZenithalParser.valid_start_char?(char)
