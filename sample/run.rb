@@ -10,9 +10,10 @@ Encoding.default_external = "UTF-8"
 $stdout.sync = true
 
 
-source = File.read("sample.zml")
+directory = File.dirname($0).encode("utf-8")
+source = File.read(directory + "/sample.zml")
 parser = ZenithalParser.new(source)
-File.open("sample.xml", "w") do |file|
+File.open(directory + "/sample.xml", "w") do |file|
   formatter = Formatters::Default.new
   document = parser.parse
   formatter.write(document, file)
