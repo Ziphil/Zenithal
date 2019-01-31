@@ -50,6 +50,7 @@ class ZenithalParser
     @brace_name = nil
     @bracket_name = nil
     @slash_name = nil
+    @macros = {}
   end
 
   def parse
@@ -61,7 +62,7 @@ class ZenithalParser
     return document
   end
 
-  def parse_nodes(option = {})
+  def parse_nodes(option = {}, in_slash = false)
     children = []
     while char = @source.read
       if char == TAG_START || char == MACRO_START
@@ -73,7 +74,7 @@ class ZenithalParser
       elsif @bracket_name && char == BRACKET_START
         @source.unread
         children << parse_bracket
-      elsif @slash_name && !option[:in_slash] && char == SLASH_START
+      elsif @slash_name && !in_slash && char == SLASH_START
         @source.unread
         children << parse_slash
       elsif char == COMMENT_DELIMITER
@@ -112,18 +113,125 @@ class ZenithalParser
     unless first_char == TAG_START || first_char == MACRO_START
       raise ZenithalParseError.new(@source)
     end
-    type = (first_char == TAG_START) ? :element : :macro
     name, option = parse_element_name
-    skip_spaces
-    attributes, children_list = {}, []
-    char = @source.read
-    if char == ATTRIBUTE_START
-      @source.unread
-      attributes = parse_attributes
-      skip_spaces
-      char = @source.read
+    if first_char == MACRO_START
+      option[:macro] = true
     end
-    if char == CONTENT_START
+    attributes = parse_attributes
+    children_list = parse_children_list(option)
+    nodes = create_nodes(name, attributes, children_list, option)
+    return nodes
+  end
+
+  def parse_element_name
+    name, marks, option = "", [], {}
+    while char = @source.read
+      if char == ATTRIBUTE_START || char == CONTENT_START || char == CONTENT_END || char =~ /\s/
+        @source.unread
+        break
+      elsif char == INSTRUCTION_MARK || char == TRIM_MARK || char == VERBAL_MARK || char == MULTIPLE_MARK
+        marks << char
+      elsif name.empty? && marks.empty? && ZenithalParser.valid_start_char?(char)
+        name << char
+      elsif !name.empty? && marks.empty? && ZenithalParser.valid_char?(char)
+        name << char
+      else
+        raise ZenithalParseError.new(@source)
+      end
+    end
+    skip_spaces
+    if marks.include?(INSTRUCTION_MARK)
+      option[:instruction] = true
+    end
+    if marks.include?(TRIM_MARK)
+      option[:trim_indents] = true
+    end
+    if marks.include?(VERBAL_MARK)
+      option[:verbal] = true
+    end
+    if marks.include?(MULTIPLE_MARK)
+      option[:multiple] = true
+    end
+    return name, option
+  end
+
+  def parse_attributes
+    attributes = {}
+    if @source.read == ATTRIBUTE_START
+      current_key = nil
+      skip_spaces
+      loop do
+        key, value = parse_attribute
+        attributes[key] = value
+        char = @source.read
+        if char == ATTRIBUTE_SEPARATOR
+          skip_spaces
+        elsif char == ATTRIBUTE_END
+          @source.unread
+          break
+        else
+          raise ZenithalParseError.new(@source)
+        end
+      end
+      unless @source.read == ATTRIBUTE_END
+        raise ZenithalParseError.new(@source)
+      end
+    else
+      @source.unread
+    end
+    return attributes
+  end
+
+  def parse_attribute
+    key = parse_attribute_key
+    skip_spaces
+    if @source.read == ATTRIBUTE_EQUAL
+      skip_spaces
+      value = parse_attribute_value
+    else
+      @source.unread
+      value = key
+    end
+    skip_spaces
+    return key, value
+  end
+
+  def parse_attribute_key
+    key = ""
+    while char = @source.read
+      if char == ATTRIBUTE_EQUAL || char == ATTRIBUTE_END || char =~ /\s/
+        @source.unread
+        break
+      elsif key.empty? && ZenithalParser.valid_start_char?(char)
+        key << char
+      elsif !key.empty? && ZenithalParser.valid_char?(char)
+        key << char
+      else
+        raise ZenithalParseError.new(@source)
+      end
+    end
+    return key
+  end
+
+  def parse_attribute_value
+    unless @source.read == ATTRIBUTE_VALUE_START
+      raise ZenithalParseError.new(@source)
+    end
+    value = ""
+    while char = @source.read
+      if char == ATTRIBUTE_VALUE_END
+        break
+      else
+        value << char
+      end
+    end
+    return value
+  end
+
+  def parse_children_list(option = {})
+    children_list = []
+    first_char = @source.read
+    if first_char == CONTENT_START
       loop do
         children = []
         if option[:verbal] || option[:instruction]
@@ -144,18 +252,22 @@ class ZenithalParser
           break
         end
       end
-    elsif char == CONTENT_END
+    elsif first_char == CONTENT_END
       children_list << []
     else
       raise ZenithalParseError.new(@source)
     end
-    elements = []
-    if type == :element
+    return children_list
+  end
+
+  def create_nodes(name, attributes, children_list, option = {})
+    nodes = []
+    unless option[:macro]
       if option[:instruction]
         unless children_list.size <= 1
           raise ZenithalParseError.new(@source)
         end
-        elements = create_instruction(name, attributes, children_list.first)
+        nodes = create_instructions(name, attributes, children_list.first)
         if name == SYSTEM_INSTRUCTION_NAME
           skip_spaces
         end
@@ -163,46 +275,15 @@ class ZenithalParser
         unless option[:multiple] || children_list.size <= 1
           raise ZenithalParseError.new(@source)
         end
-        elements = create_element(name, attributes, children_list)
+        nodes = create_elements(name, attributes, children_list)
       end
-    else type == :macro
-      elements = process_macro(name, attributes, children_list)
+    else
+      nodes = process_macro(name, attributes, children_list)
     end
-    return elements
+    return nodes
   end
 
-  def parse_element_name
-    name, marks, option = "", [], {}
-    while char = @source.read
-      if char == ATTRIBUTE_START || char == CONTENT_START || char == CONTENT_END || char =~ /\s/
-        @source.unread
-        break
-      elsif char == INSTRUCTION_MARK || char == TRIM_MARK || char == VERBAL_MARK || char == MULTIPLE_MARK
-        marks << char
-      elsif name.empty? && marks.empty? && ZenithalParser.valid_start_char?(char)
-        name << char
-      elsif !name.empty? && marks.empty? && ZenithalParser.valid_char?(char)
-        name << char
-      else
-        raise ZenithalParseError.new(@source)
-      end
-    end
-    if marks.include?(INSTRUCTION_MARK)
-      option[:instruction] = true
-    end
-    if marks.include?(TRIM_MARK)
-      option[:trim_indents] = true
-    end
-    if marks.include?(VERBAL_MARK)
-      option[:verbal] = true
-    end
-    if marks.include?(MULTIPLE_MARK)
-      option[:multiple] = true
-    end
-    return [name, option]
-  end
-
-  def create_element(name, attributes, children_list)
+  def create_elements(name, attributes, children_list)
     elements = []
     children_list.each do |children|
       element = Element.new(name)
@@ -217,7 +298,7 @@ class ZenithalParser
     return elements
   end
 
-  def create_instruction(target, attributes, children)
+  def create_instructions(target, attributes, children)
     instructions = []
     if target == SYSTEM_INSTRUCTION_NAME
       @version = attributes["version"] if attributes["version"]
@@ -254,76 +335,8 @@ class ZenithalParser
     return elements
   end
 
-  def parse_attributes
-    unless @source.read == ATTRIBUTE_START
-      raise ZenithalParseError.new(@source)
-    end
-    attributes = {}
-    current_key = nil
-    skip_spaces
-    loop do
-      key, value = parse_attribute
-      attributes[key] = value
-      char = @source.read
-      if char == ATTRIBUTE_SEPARATOR
-        skip_spaces
-      elsif char == ATTRIBUTE_END
-        @source.unread
-        break
-      else
-        raise ZenithalParseError.new(@source)
-      end
-    end
-    unless @source.read == ATTRIBUTE_END
-      raise ZenithalParseError.new(@source)
-    end
-    return attributes
-  end
-
-  def parse_attribute
-    key = parse_attribute_key
-    skip_spaces
-    if @source.read == ATTRIBUTE_EQUAL
-      skip_spaces
-      value = parse_attribute_value
-    else
-      @source.unread
-      value = key
-    end
-    skip_spaces
-    return [key, value]
-  end
-
-  def parse_attribute_key
-    key = ""
-    while char = @source.read
-      if char == ATTRIBUTE_EQUAL || char == ATTRIBUTE_END || char =~ /\s/
-        @source.unread
-        break
-      elsif key.empty? && ZenithalParser.valid_start_char?(char)
-        key << char
-      elsif !key.empty? && ZenithalParser.valid_char?(char)
-        key << char
-      else
-        raise ZenithalParseError.new(@source)
-      end
-    end
-    return key
-  end
-
-  def parse_attribute_value
-    unless @source.read == ATTRIBUTE_VALUE_START
-      raise ZenithalParseError.new(@source)
-    end
-    value = ""
-    while char = @source.read
-      if char == ATTRIBUTE_VALUE_END
-        break
-      else
-        value << char
-      end
-    end
-    return value
+  def register_macro(name, &block)
+    @macros.store(name, block)
   end
 
   def parse_brace
@@ -360,7 +373,7 @@ class ZenithalParser
     unless @source.read == SLASH_START
       raise ZenithalParseError.new(@source)
     end
-    children = parse_nodes({:in_slash => true})
+    children = parse_nodes({}, true)
     unless @source.read == SLASH_END
       raise ZenithalParseError.new(@source)
     end
