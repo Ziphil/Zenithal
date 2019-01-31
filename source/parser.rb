@@ -12,6 +12,7 @@ $stdout.sync = true
 class ZenithalParser
 
   TAG_START = "\\"
+  MACRO_START = "&"
   ATTRIBUTE_START = "|"
   ATTRIBUTE_END = "|"
   ATTRIBUTE_EQUAL = "="
@@ -26,9 +27,6 @@ class ZenithalParser
   BRACKET_END = "]"
   SLASH_START = "/"
   SLASH_END = "/"
-  ENTITY_START = "&"
-  ENTITY_CHAR_SYMBOL = "#"
-  ENTITY_END = ">"
   COMMENT_DELIMITER = "#"
   INSTRUCTION_MARK = "?"
   TRIM_MARK = "*"
@@ -66,7 +64,7 @@ class ZenithalParser
   def parse_nodes(option = {})
     children = []
     while char = @source.read
-      if char == TAG_START
+      if char == TAG_START || char == MACRO_START
         @source.unread
         children.concat(parse_element)
       elsif @brace_name && char == BRACE_START
@@ -92,10 +90,29 @@ class ZenithalParser
     return children
   end
 
+  def parse_verbal_nodes(option = {})
+    children = []
+    while char = @source.read
+      if char == MACRO_START
+        @source.unread
+        children.concat(parse_element)
+      elsif char == CONTENT_END
+        @source.unread
+        break
+      else
+        @source.unread
+        children << parse_verbal_text(option)
+      end
+    end
+    return children
+  end
+
   def parse_element
-    unless @source.read == TAG_START
+    first_char = @source.read
+    unless first_char == TAG_START || first_char == MACRO_START
       raise ZenithalParseError.new(@source)
     end
+    type = (first_char == TAG_START) ? :element : :macro
     name, option = parse_element_name
     skip_spaces
     attributes, children_list = {}, []
@@ -110,7 +127,7 @@ class ZenithalParser
       loop do
         children = []
         if option[:verbal] || option[:instruction]
-          children = [parse_verbal_text(option)]
+          children = parse_verbal_nodes(option)
         else
           children = parse_nodes(option)
         end
@@ -133,19 +150,23 @@ class ZenithalParser
       raise ZenithalParseError.new(@source)
     end
     elements = []
-    if option[:instruction]
-      unless children_list.size <= 1
-        raise ZenithalParseError.new(@source)
+    if type == :element
+      if option[:instruction]
+        unless children_list.size <= 1
+          raise ZenithalParseError.new(@source)
+        end
+        elements = create_instruction(name, attributes, children_list.first)
+        if name == SYSTEM_INSTRUCTION_NAME
+          skip_spaces
+        end
+      else
+        unless option[:multiple] || children_list.size <= 1
+          raise ZenithalParseError.new(@source)
+        end
+        elements = create_element(name, attributes, children_list)
       end
-      elements = create_instruction(name, attributes, children_list.first)
-      if name == SYSTEM_INSTRUCTION_NAME
-        skip_spaces
-      end
-    else
-      unless option[:multiple] || children_list.size <= 1
-        raise ZenithalParseError.new(@source)
-      end
-      elements = create_element(name, attributes, children_list)
+    else type == :macro
+      elements = process_macro(name, attributes, children_list)
     end
     return elements
   end
@@ -224,6 +245,15 @@ class ZenithalParser
     return instructions
   end
 
+  def process_macro(name, attributes, children_list)
+    elements = []
+    if ENTITIES.key?(name)
+      text = Text.new(ENTITIES[name], true, nil, false)
+      elements << text      
+    end
+    return elements
+  end
+
   def parse_attributes
     unless @source.read == ATTRIBUTE_START
       raise ZenithalParseError.new(@source)
@@ -289,9 +319,6 @@ class ZenithalParser
     while char = @source.read
       if char == ATTRIBUTE_VALUE_END
         break
-      elsif char == ENTITY_START
-        @source.unread
-        value << parse_entity
       else
         value << char
       end
@@ -382,20 +409,22 @@ class ZenithalParser
 
   def parse_text(option = {})
     string = ""
-    space = ""
     while char = @source.read
-      if char == TAG_START || (@brace_name && char == BRACE_START) || (@bracket_name && char == BRACKET_START) || (@slash_name && char == SLASH_START)
+      if char == TAG_START || char == MACRO_START
         @source.unread
         break
-      elsif char == CONTENT_END || (@brace_name && char == BRACE_END) || (@bracket_name && char == BRACKET_END) || (@slash_name && char == SLASH_END)
+      elsif (@brace_name && char == BRACE_START) || (@bracket_name && char == BRACKET_START) || (@slash_name && char == SLASH_START)
+        @source.unread
+        break 
+      elsif char == CONTENT_END
+        @source.unread
+        break
+      elsif (@brace_name && char == BRACE_END) || (@bracket_name && char == BRACKET_END) || (@slash_name && char == SLASH_END)
         @source.unread
         break
       elsif char == COMMENT_DELIMITER
         @source.unread
         break
-      elsif char == ENTITY_START
-        @source.unread
-        string << parse_entity
       else
         string << char
       end
@@ -407,67 +436,18 @@ class ZenithalParser
   def parse_verbal_text(option = {})
     string = ""
     while char = @source.read
-      if char == CONTENT_END
+      if char == MACRO_START
         @source.unread
         break
-      elsif char == ENTITY_START
+      elsif char == CONTENT_END
         @source.unread
-        string << parse_entity
+        break
       else
         string << char
       end
     end
     text = Text.new(string, true, nil, false)
     return text
-  end
-
-  def parse_entity
-    unless @source.read == ENTITY_START
-      raise ZenithalParseError.new(@source)
-    end
-    first_char = @source.read
-    content = ""
-    if first_char == ENTITY_CHAR_SYMBOL
-      unless @source.read == "x"
-        raise ZenithalParseError.new(@source)
-      end
-      while char = @source.read
-        if char == ENTITY_END
-          break
-        elsif char =~ /[0-9a-fA-F]/
-          content << char
-        else
-          raise ZenithalParseError.new(@source)
-        end
-      end
-    else
-      @source.unread
-      while char = @source.read
-        if char == ENTITY_END
-          break
-        elsif content.empty? && ZenithalParser.valid_start_char?(char)
-          content << char
-        elsif !content.empty? && ZenithalParser.valid_char?(char)
-          content << char
-        else
-          raise ZenithalParseError.new(@source)
-        end
-      end
-    end
-    unless char == ENTITY_END
-      raise ZenithalParseError.new(@source)
-    end
-    result = ""
-    if first_char == ENTITY_CHAR_SYMBOL
-      result << content.to_i(16).chr(Encoding::UTF_8)
-    else
-      if ENTITIES.key?(content)
-        result << ENTITIES[content]
-      else
-        raise ZenithalParseError.new(@source)
-      end
-    end
-    return result
   end
 
   def skip_spaces
