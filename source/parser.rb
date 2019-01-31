@@ -332,7 +332,7 @@ class ZenithalParser
       text = Text.new(ENTITIES[name], true, nil, false)
       elements << text      
     elsif @macros.key?(name)
-      elements = @macros[name].call(name, attributes, children_list)
+      elements = @macros[name].call(attributes, children_list)
     else
       raise ZenithalParseError.new(@source)
     end
