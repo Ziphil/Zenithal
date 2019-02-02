@@ -13,6 +13,7 @@ class ZenithalParser
 
   TAG_START = "\\"
   MACRO_START = "&"
+  ESCAPE_START = "\\"
   ATTRIBUTE_START = "|"
   ATTRIBUTE_END = "|"
   ATTRIBUTE_EQUAL = "="
@@ -36,6 +37,7 @@ class ZenithalParser
   ENTITIES = {"amp" => "&", "lt" => "<", "gt" => ">", "apos" => "'", "quot" => "\"",
               "lcub" => "{",  "rcub" => "}", "lbrace" => "{",  "rbrace" => "}", "lsqb" => "[",  "rsqb" => "]", "lbrack" => "[",  "rbrack" => "]",
               "sol" => "/", "bsol" => "\\", "verbar" => "|", "vert" => "|", "num" => "#"}
+  ESCAPES = ["&", "<", ">", "'", "\"", "{", "}", "[", "]", "/", "\\", "|", "#"]
   VALID_START_CHARS = [0x3A, 0x41..0x5A, 0x5F, 0x61..0x7A, 0xC0..0xD6, 0xD8..0xF6, 0xF8..0x2FF, 0x370..0x37D, 0x37F..0x1FFF, 0x200C..0x200D, 
                        0x2070..0x218F, 0x2C00..0x2FEF, 0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF]
   VALID_MIDDLE_CHARS = [0x2D, 0x2E, 0x30..0x39, 0xB7, 0x0300..0x036F, 0x203F..0x2040]
@@ -65,7 +67,11 @@ class ZenithalParser
   def parse_nodes(option = {}, in_slash = false)
     children = []
     while char = @source.read
-      if char == TAG_START || char == MACRO_START
+      next_char = @source.peek
+      if char == ESCAPE_START && ESCAPES.include?(next_char)
+        @source.unread
+        children << parse_escape
+      elsif char == TAG_START || char == MACRO_START
         @source.unread
         children.concat(parse_element)
       elsif @brace_name && char == BRACE_START
@@ -94,7 +100,11 @@ class ZenithalParser
   def parse_verbal_nodes(option = {})
     children = []
     while char = @source.read
-      if char == MACRO_START
+      next_char = @source.peek
+      if char == ESCAPE_START && ESCAPES.include?(next_char)
+        @source.unread
+        children << parse_escape
+      elsif char == MACRO_START
         @source.unread
         children.concat(parse_element)
       elsif char == CONTENT_END
@@ -219,8 +229,12 @@ class ZenithalParser
     end
     value = ""
     while char = @source.read
+      next_char = @source.peek
       if char == ATTRIBUTE_VALUE_END
         break
+      elsif char == ESCAPE_START && ESCAPES.include?(next_char)
+        @source.unread
+        value << parse_escape_string
       else
         value << char
       end
@@ -427,7 +441,7 @@ class ZenithalParser
   def parse_text(option = {})
     string = ""
     while char = @source.read
-      if char == TAG_START || char == MACRO_START
+      if char == TAG_START || char == MACRO_START || char == ESCAPE_START
         @source.unread
         break
       elsif (@brace_name && char == BRACE_START) || (@bracket_name && char == BRACKET_START) || (@slash_name && char == SLASH_START)
@@ -453,7 +467,11 @@ class ZenithalParser
   def parse_verbal_text(option = {})
     string = ""
     while char = @source.read
+      next_char = @source.peek
       if char == MACRO_START
+        @source.unread
+        break
+      elsif char == ESCAPE_START && ESCAPES.include?(next_char)
         @source.unread
         break
       elsif char == CONTENT_END
@@ -465,6 +483,20 @@ class ZenithalParser
     end
     text = Text.new(string, true, nil, false)
     return text
+  end
+
+  def parse_escape
+    char = parse_escape_string
+    text = Text.new(char, true, nil, false)
+    return text
+  end
+
+  def parse_escape_string
+    unless @source.read == ESCAPE_START
+      raise ZenithalParseError.new(@source)
+    end
+    char = @source.read
+    return char
   end
 
   def skip_spaces
@@ -539,6 +571,11 @@ class StringReader
     if char == "\n"
       @lineno += 1
     end
+    return char
+  end
+
+  def peek
+    char = @string[@pos + 1]
     return char
   end
 
