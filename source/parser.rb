@@ -342,11 +342,11 @@ class ZenithalParser
 
   def process_macro(name, attributes, children_list)
     elements = []
-    if ENTITIES.key?(name)
+    if @macros.key?(name)
+      elements = @macros[name].call(attributes, children_list)
+    elsif ENTITIES.key?(name)
       text = Text.new(ENTITIES[name], true, nil, false)
       elements << text      
-    elsif @macros.key?(name)
-      elements = @macros[name].call(attributes, children_list)
     else
       raise ZenithalParseError.new(@source)
     end
