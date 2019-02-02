@@ -501,7 +501,7 @@ class ZenithalParser
 
   def skip_spaces
     count = 0
-    while (char = @source.read) =~ /\s/
+    while @source.read =~ /\s/
       count += 1
     end
     @source.unread
