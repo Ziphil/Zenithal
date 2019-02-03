@@ -13,7 +13,7 @@ class ZenithalParser
 
   TAG_START = "\\"
   MACRO_START = "&"
-  ESCAPE_START = "\\"
+  ESCAPE_START = "`"
   ATTRIBUTE_START = "|"
   ATTRIBUTE_END = "|"
   ATTRIBUTE_EQUAL = "="
@@ -36,8 +36,8 @@ class ZenithalParser
   SYSTEM_INSTRUCTION_NAME = "zml"
   ENTITIES = {"amp" => "&", "lt" => "<", "gt" => ">", "apos" => "'", "quot" => "\"",
               "lcub" => "{",  "rcub" => "}", "lbrace" => "{",  "rbrace" => "}", "lsqb" => "[",  "rsqb" => "]", "lbrack" => "[",  "rbrack" => "]",
-              "sol" => "/", "bsol" => "\\", "verbar" => "|", "vert" => "|", "num" => "#"}
-  ESCAPES = ["&", "<", ">", "'", "\"", "{", "}", "[", "]", "/", "\\", "|", "#"]
+              "sol" => "/", "bsol" => "\\", "verbar" => "|", "vert" => "|", "grave" => "`", "num" => "#"}
+  ESCAPES = ["&", "<", ">", "'", "\"", "{", "}", "[", "]", "/", "\\", "|", "`", "#"]
   VALID_START_CHARS = [0x3A, 0x41..0x5A, 0x5F, 0x61..0x7A, 0xC0..0xD6, 0xD8..0xF6, 0xF8..0x2FF, 0x370..0x37D, 0x37F..0x1FFF, 0x200C..0x200D, 
                        0x2070..0x218F, 0x2C00..0x2FEF, 0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF]
   VALID_MIDDLE_CHARS = [0x2D, 0x2E, 0x30..0x39, 0xB7, 0x0300..0x036F, 0x203F..0x2040]
