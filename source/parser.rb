@@ -67,11 +67,7 @@ class ZenithalParser
   def parse_nodes(option = {}, in_slash = false)
     children = []
     while char = @source.read
-      next_char = @source.peek
-      if char == ESCAPE_START && ESCAPES.include?(next_char)
-        @source.unread
-        children << parse_escape
-      elsif char == TAG_START || char == MACRO_START
+      if char == TAG_START || char == MACRO_START
         @source.unread
         children.concat(parse_element)
       elsif @brace_name && char == BRACE_START
@@ -101,13 +97,7 @@ class ZenithalParser
     children = []
     while char = @source.read
       next_char = @source.peek
-      if char == ESCAPE_START && ESCAPES.include?(next_char)
-        @source.unread
-        children << parse_escape
-      elsif char == MACRO_START
-        @source.unread
-        children.concat(parse_element)
-      elsif char == CONTENT_END
+      if char == CONTENT_END
         @source.unread
         break
       else
@@ -441,7 +431,8 @@ class ZenithalParser
   def parse_text(option = {})
     string = ""
     while char = @source.read
-      if char == TAG_START || char == MACRO_START || char == ESCAPE_START
+      next_char = @source.peek
+      if char == TAG_START || char == MACRO_START
         @source.unread
         break
       elsif (@brace_name && char == BRACE_START) || (@bracket_name && char == BRACKET_START) || (@slash_name && char == SLASH_START)
@@ -456,6 +447,9 @@ class ZenithalParser
       elsif char == COMMENT_DELIMITER
         @source.unread
         break
+      elsif char == ESCAPE_START && ESCAPES.include?(next_char)
+        @source.unread
+        string << parse_escape_string
       else
         string << char
       end
@@ -468,26 +462,17 @@ class ZenithalParser
     string = ""
     while char = @source.read
       next_char = @source.peek
-      if char == MACRO_START
+      if char == CONTENT_END
         @source.unread
         break
       elsif char == ESCAPE_START && ESCAPES.include?(next_char)
         @source.unread
-        break
-      elsif char == CONTENT_END
-        @source.unread
-        break
+        string << parse_escape_string
       else
         string << char
       end
     end
     text = Text.new(string, true, nil, false)
-    return text
-  end
-
-  def parse_escape
-    char = parse_escape_string
-    text = Text.new(char, true, nil, false)
     return text
   end
 
