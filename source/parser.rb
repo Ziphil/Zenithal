@@ -545,7 +545,7 @@ class StringReader
   attr_reader :lineno
 
   def initialize(string)
-    @string = string
+    @string = string.chars
     @pos = -1
     @lineno = 1
   end
