@@ -9,9 +9,8 @@ It is almost fully compatible with XML, and less redundant and more readable tha
 This repository provides a script for converting ZenML to XML.
 
 ## Syntax
-Notice that the syntax of ZenML is currently a draft and subject to change.
 
-- [Version 1.0](syntax/1.0.md) (draft)
+- [Version 1.0](syntax/1.0.md)
 
 ## Usage
 Create a `ZenithalParser` instance with a ZenML string, and then call `parse` method.
