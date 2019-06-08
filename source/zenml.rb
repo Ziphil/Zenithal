@@ -10,4 +10,6 @@ end
 
 require 'zenml/error'
 require 'zenml/reader'
+require 'zenml/utility'
 require 'zenml/parser'
+require 'zenml/converter'
