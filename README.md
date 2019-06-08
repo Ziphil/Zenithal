@@ -8,9 +8,15 @@ It is almost fully compatible with XML, and less redundant and more readable tha
 
 This repository provides a script for converting ZenML to XML.
 
+## Installation
+Install from RubyGems.
+```
+gem install zenml
+```
+
 ## Syntax
 
-- [Version 1.0](syntax/1.0.md)
+- [Version 1.0](document/1.0.md)
 
 ## Usage
 Create a `ZenithalParser` instance with a ZenML string, and then call `parse` method.
@@ -21,7 +27,9 @@ The following example code converts a ZenML file to an XML file:
 ```ruby
 # the parser uses classes offered by rexml/document library
 require 'rexml/document'
+require 'zenml'
 include REXML
+include Zenithal
 # read a ZenML source from a file
 source = File.read("sample.zml")
 parser = ZenithalParser.new(source)

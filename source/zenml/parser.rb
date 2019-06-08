@@ -5,11 +5,8 @@ require 'pp'
 require 'rexml/document'
 include REXML
 
-Encoding.default_external = "UTF-8"
-$stdout.sync = true
 
-
-class ZenithalParser
+class Zenithal::ZenithalParser
 
   TAG_START = "\\"
   MACRO_START = "&"
@@ -512,7 +509,7 @@ class ZenithalParser
       when Text
         texts << child
       when Parent
-        texts.concat(child.all_texts)
+        texts.concat(ZenithalParser.get_all_texts(child))
       end
     end
     indent_length = 10000
@@ -537,69 +534,17 @@ class ZenithalParser
     return VALID_START_CHARS.any?{|s| s === char.ord} || VALID_MIDDLE_CHARS.any?{|s| s === char.ord}
   end
 
-end
-
-
-class StringReader
-
-  attr_reader :lineno
-
-  def initialize(string)
-    @string = string.chars
-    @pos = -1
-    @lineno = 1
-  end
-
-  def read
-    @pos += 1
-    char = @string[@pos]
-    if char == "\n"
-      @lineno += 1
-    end
-    return char
-  end
-
-  def peek
-    char = @string[@pos + 1]
-    return char
-  end
-
-  def unread(size = 1)
-    size.times do
-      char = @string[@pos]
-      @pos -= 1
-      if char == "\n"
-        @lineno -= 1
-      end
-    end
-  end
-
-end
-
-
-class Parent
-
-  def all_texts
+  def self.get_all_texts
     texts = []
     self.children.each do |child|
       case child
       when Text
         texts << child
       when Parent
-        texts.concat(child.all_texts)
+        texts.concat(get_all_texts(child))
       end
     end
     return texts
-  end
-
-end
-
-
-class ZenithalParseError < StandardError
-
-  def initialize(reader, message = "")
-    whole_message = "[line #{reader.lineno}] #{message}"
-    super(whole_message)
   end
 
 end

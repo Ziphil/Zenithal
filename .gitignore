@@ -1,4 +1,5 @@
-sample/*.xml
+out
 .vscode
+*.gem
 desktop.ini
 Thumbs.db
