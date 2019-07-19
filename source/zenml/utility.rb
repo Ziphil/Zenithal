@@ -7,12 +7,23 @@ include REXML
 
 class Element
 
+  alias old_get_index []
+  alias old_set_index []=
+
   def [](key)
-    return attribute(key).to_s
+    if key.is_a?(String)
+      return attribute(key).to_s
+    else
+      return old_get_index(key)
+    end
   end
 
   def []=(key, value)
-    add_attribute(key, value)
+    if key.is_a?(String)
+      return add_attribute(key, value)
+    else
+      return old_set_index(key)
+    end
   end
 
   def each_xpath(*args, &block)
