@@ -15,9 +15,10 @@ Gem::Specification.new do |spec|
   spec.homepage = "https://github.com/Ziphil/Zenithal"
   spec.summary = "Alternative syntax for XML"
   spec.description = <<~end_string
-    This gem serves a tool for parsing a ZenML, an alternative new symtax for XML, to an XML node tree.
+    This gem serves a tool for parsing a document written in ZenML, an alternative new syntax for XML, to an XML node tree.
     This also contains some utility classes to transform XML documents.
   end_string
+  spec.required_ruby_version = ">= 2.5"
 
   spec.files = Dir.glob("source/**/*.rb")
   spec.require_paths = ["source"]
