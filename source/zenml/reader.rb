@@ -1,7 +1,7 @@
 # coding: utf-8
 
 
-class Zenithal::StringReader
+class StringReader
 
   attr_reader :lineno
 

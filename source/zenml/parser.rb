@@ -6,7 +6,7 @@ require 'rexml/document'
 include REXML
 
 
-class Zenithal::ZenithalParser
+class ZenithalParser
 
   TAG_START = "\\"
   MACRO_START = "&"

@@ -6,7 +6,7 @@ require 'rexml/document'
 include REXML
 
 
-class Zenithal::ZenithalConverter
+class ZenithalConverter
 
   attr_reader :configs
 

@@ -1,7 +1,7 @@
 # coding: utf-8
 
 
-class Zenithal::ZenithalParseError < StandardError
+class ZenithalParseError < StandardError
 
   def initialize(reader, message = "")
     whole_message = "[line #{reader.lineno}] #{message}"
