@@ -66,6 +66,25 @@ class ZenithalNewParser
   end
 
   def parse
+    result = parse_document.parse
+    if result.success?
+      return result.value
+    else
+      raise ZenithalParseError.new(result.message)
+    end
+  end
+
+  def parse_document
+    parser = Parser.exec(self) do
+      document = Document.new
+      children = !parse_nodes(false)
+      !parse_eof
+      children.each do |child|
+        document.add(child)
+      end
+      next document
+    end
+    return parser
   end
 
   def parse_nodes(verbal)

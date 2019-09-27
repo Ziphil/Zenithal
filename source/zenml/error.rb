@@ -3,9 +3,8 @@
 
 class ZenithalParseError < StandardError
 
-  def initialize(reader, message = "")
-    whole_message = "[line #{reader.lineno}] #{message}"
-    super(whole_message)
+  def initialize(message = "")
+    super(message)
   end
 
 end
