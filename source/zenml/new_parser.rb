@@ -68,9 +68,9 @@ class ZenithalNewParser
 
   def parse_element
     result = Result.exec do
-      parse_char(TAG_START).get
-      name = parse_identifier.get
-      marks = parse_marks.get
+      ~parse_char(TAG_START)
+      name = ~parse_identifier
+      marks = ~parse_marks
       next name, marks
     end
     return result
@@ -94,8 +94,8 @@ class ZenithalNewParser
   def parse_identifier
     result = Result.exec do
       identifier = ""
-      identifier << parse_first_identifier_char.get
-      identifier << many{parse_middle_identifier_char}.get.join
+      identifier.concat(~parse_first_identifier_char)
+      identifier.concat(*~many{parse_middle_identifier_char})
       next identifier
     end
     return result

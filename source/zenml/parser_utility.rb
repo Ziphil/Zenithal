@@ -92,7 +92,7 @@ class Result
     end
   end
 
-  def get
+  def ~
     if self.success?
       return @value
     else
