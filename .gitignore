@@ -1,5 +1,6 @@
 out
 .vscode
 *.gem
+**/debug.rb
 desktop.ini
 Thumbs.db
