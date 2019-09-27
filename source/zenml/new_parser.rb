@@ -139,9 +139,9 @@ class ZenithalNewParser
 
   def parse_identifier
     result = Result.exec do
-      identifier = ""
-      identifier.concat(!parse_first_identifier_char)
-      identifier.concat(*!many{parse_middle_identifier_char})
+      first_char = !parse_first_identifier_char
+      rest_chars = !many{parse_middle_identifier_char}
+      identifier = first_char + rest_chars.join
       next identifier
     end
     return result
