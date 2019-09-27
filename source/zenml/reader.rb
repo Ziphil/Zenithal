@@ -9,6 +9,8 @@ class StringReader
     @string = string.chars
     @pos = -1
     @lineno = 1
+    @marked_pos = nil
+    @marked_lineno = nil
   end
 
   def read
@@ -33,6 +35,16 @@ class StringReader
         @lineno -= 1
       end
     end
+  end
+
+  def mark
+    @marked_pos = @pos
+    @marked_lineno = @lineno
+  end
+
+  def reset
+    @pos = @marked_pos
+    @lineno = @marked_lineno
   end
 
 end
