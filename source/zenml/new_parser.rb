@@ -72,7 +72,8 @@ class ZenithalNewParser
       !parse_char(TAG_START)
       name = !parse_identifier
       marks = !parse_marks
-      next name, marks
+      attributes = !parse_attributes.maybe
+      next name, marks, attributes
     end
     return parser
   end
@@ -91,14 +92,20 @@ class ZenithalNewParser
   def parse_attributes
     parser = Parser.exec(self) do
       !parse_char(ATTRIBUTE_START)
+      first_attribute = !parse_attribute(false)
+      rest_attribtues = !parse_attribute(true).many
+      attributes = first_attribute.merge(*rest_attribtues)
       !parse_char(ATTRIBUTE_END)
-      next ""
+      next attributes
     end
     return parser
   end
 
-  def parse_attribute
+  def parse_attribute(comma)
     parser = Parser.exec(self) do
+      if comma
+        !parse_char(ATTRIBUTE_SEPARATOR)
+      end
       !parse_space
       name = !parse_identifier
       !parse_space
@@ -106,7 +113,7 @@ class ZenithalNewParser
       !parse_space
       value = !parse_quoted_string
       !parse_space
-      next name, value
+      next {name => value}
     end
     return parser
   end

@@ -92,6 +92,10 @@ class Parser
     return parser
   end
 
+  def maybe
+    return self.many(0, 1).map{|s| s.first}
+  end
+
   def map(&block)
     this = self
     parser = Parser.new(this.builder) do
