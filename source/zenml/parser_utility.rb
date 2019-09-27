@@ -121,16 +121,16 @@ module ParserBuilder
       case query
       when String
         predicate = query == char
-        message = "expected '#{query}'"
+        message = "Expected '#{query}'"
       when Regexp
         predicate = query =~ char
-        message = "expected /#{query}/"
+        message = "Expected /#{query}/"
       when Integer
         predicate = query == char&.ord
-        message = "expected '#{query.chr}'"
+        message = "Expected '#{query.chr}'"
       when Range
         predicate = query.cover?(char&.ord)
-        message = "expected '#{query.begin}'..'#{query.end}'"
+        message = "Expected '#{query.begin}'..'#{query.end}'"
       end
       if predicate
         next Result.success(char)
@@ -151,7 +151,7 @@ module ParserBuilder
       if char && chars.all?{|s| s != char}
         next Result.success(char)
       else
-        message = "expected other than " + chars.map{|s| "'#{s}'"}.join(", ")
+        message = "Expected other than " + chars.map{|s| "'#{s}'"}.join(", ")
         next Result.error(error_message(message))
       end
     end
@@ -164,7 +164,7 @@ module ParserBuilder
       if char == nil
         next Result.success(true)
       else
-        next Result.error(error_message("End of file reached"))
+        next Result.error(error_message("Document ends before reaching end of file"))
       end
     end
     return parser
