@@ -91,6 +91,52 @@ class ZenithalNewParser
     return any(methods)
   end
 
+  def parse_attributes
+    parse_char(ATTRIBUTE_START)
+    parse_char(ATTRIBUTE_END)
+  end
+
+  def parse_attribute
+    result = Result.exec do
+      ~parse_space
+      name = ~parse_identifier
+      ~parse_space
+      ~parse_char(ATTRIBUTE_EQUAL)
+      ~parse_space
+      value = ~parse_quoted_string
+      ~parse_space
+      next name, value
+    end
+    return result
+  end
+
+  def parse_quoted_string
+    result = Result.exec do
+      ~parse_char(ATTRIBUTE_VALUE_START)
+      texts = ~many{any([lambda{parse_quoted_string_text}, lambda{parse_escape}])}
+      ~parse_char(ATTRIBUTE_VALUE_END)
+      next texts.join
+    end
+    return result
+  end
+
+  def parse_quoted_string_text
+    result = Result.exec do
+      chars = ~many(1){parse_char_exclude([ATTRIBUTE_VALUE_END, ESCAPE_START])}
+      next chars.join
+    end
+    return result
+  end
+
+  def parse_escape
+    result = Result.exec do
+      ~parse_char(ESCAPE_START)
+      char = ~parse_char_choice(ESCAPE_CHARS)
+      next char
+    end
+    return result
+  end
+
   def parse_identifier
     result = Result.exec do
       identifier = ""

@@ -29,8 +29,17 @@ module Parser
 
   def parse_char_choice(queries)
     methods = queries.map{|s| lambda{parse_char(s)}}
-    char = any(methods)
-    return char
+    return any(methods)
+  end
+
+  def parse_char_exclude(chars)
+    char = self.read
+    if char && chars.all?{|s| s != char}
+      return Result.success(char)
+    else
+      message = "expected other than " + chars.map{|s| "'#{s}'"}.join(", ")
+      return Result.error(create_error_message(message))
+    end
   end
 
   def any(methods)
@@ -49,20 +58,25 @@ module Parser
     return result || Result.error(messages.join(" | "))
   end
 
-  def many(method = nil, &block)
+  def many(lower_limit = 0, method = nil, &block)
     method ||= block
-    values = []
+    values, count = [], 0
     loop do
       mark
       each_result = method.call
       if each_result.success?
         values << each_result.value
+        count += 1
       else
         reset
         break
       end
     end
-    return Result.success(values)
+    if count >= lower_limit
+      return Result.success(values)
+    else
+      return Result.error("")
+    end
   end
 
 end
