@@ -1,82 +1,157 @@
 # coding: utf-8
 
 
-module Parser
+class Parser
 
+  attr_reader :builder
+
+  def initialize(builder, &method)
+    @builder = builder
+    @method = method
+  end
+
+  def self.build(source, &block)
+    parser = Parser.new(source) do
+      next block.call
+    end
+    return parser
+  end
+
+  def self.exec(source, &block)
+    parser = Parser.new(source) do
+      value = nil
+      message = catch(:error) do
+        value = block.call
+      end
+      if value
+        next Result.success(value)
+      else
+        next Result.error(message)
+      end
+    end
+    return parser
+  end
+
+  def parse
+    return @builder.instance_eval(&@method)
+  end
+
+  def !
+    result = self.parse
+    if result.success?
+      return result.value
+    else
+      throw(:error, result.message)
+    end
+  end
+
+  def |(other)
+    this = self
+    if this.builder.equal?(other.builder)
+      parser = Parser.new(this.builder) do
+        source.mark
+        result = this.parse
+        if result.success?
+          next result
+        else
+          source.reset
+          result = other.parse
+          next result
+        end
+      end
+      return parser
+    else
+      raise StandardError.new("Different source")
+    end
+  end
+
+  def many(lower_limit = 0, upper_limit = nil)
+    this = self
+    parser = Parser.new(this.builder) do
+      values, count = [], 0
+      loop do
+        source.mark
+        each_result = this.parse
+        if each_result.success?
+          values << each_result.value
+          count += 1
+          if upper_limit && count >= upper_limit
+            break
+          end
+        else
+          source.reset
+          break
+        end
+      end
+      if count >= lower_limit
+        next Result.success(values)
+      else
+        next Result.error("")
+      end
+    end
+    return parser
+  end
+
+  def map(&block)
+    this = self
+    parser = Parser.new(this.builder) do
+      result = this.parse
+      if result.success?
+        next Result.success(block.call(result.value))
+      else
+        next result
+      end
+    end
+    return parser
+  end
+
+end
+
+
+module ParserBuilder
+  
   def parse_char(query)
-    char = self.read
-    predicate, message = false, nil
-    case query
-    when String
-      predicate = query == char
-      message = "expected '#{query}'"
-    when Regexp
-      predicate = query =~ char
-      message = "expected /#{query}/"
-    when Integer
-      predicate = query == char&.ord
-      message = "expected '#{query.chr}'"
-    when Range
-      predicate = query.cover?(char&.ord)
-      message = "expected '#{query.begin}'..'#{query.end}'"
-    end
-    if predicate
-      return Result.success(char)
-    else
-      return Result.error(create_error_message(message))
-    end
-  end
-
-  def parse_char_choice(queries)
-    methods = queries.map{|s| lambda{parse_char(s)}}
-    return any(methods)
-  end
-
-  def parse_char_exclude(chars)
-    char = self.read
-    if char && chars.all?{|s| s != char}
-      return Result.success(char)
-    else
-      message = "expected other than " + chars.map{|s| "'#{s}'"}.join(", ")
-      return Result.error(create_error_message(message))
-    end
-  end
-
-  def any(methods)
-    result, messages = nil, []
-    mark
-    methods.each do |method|
-      reset
-      each_result = method.call
-      if each_result.success?
-        result = each_result
-        break
+    parser = Parser.build(self) do
+      char = source.read
+      predicate, message = false, nil
+      case query
+      when String
+        predicate = query == char
+        message = "expected '#{query}'"
+      when Regexp
+        predicate = query =~ char
+        message = "expected /#{query}/"
+      when Integer
+        predicate = query == char&.ord
+        message = "expected '#{query.chr}'"
+      when Range
+        predicate = query.cover?(char&.ord)
+        message = "expected '#{query.begin}'..'#{query.end}'"
+      end
+      if predicate
+        next Result.success(char)
       else
-        messages << each_result.message
+        next Result.error(error_message(message))
       end
     end
-    return result || Result.error(messages.join(" | "))
+    return parser
   end
 
-  def many(lower_limit = 0, method = nil, &block)
-    method ||= block
-    values, count = [], 0
-    loop do
-      mark
-      each_result = method.call
-      if each_result.success?
-        values << each_result.value
-        count += 1
+  def parse_char_any(queries)
+    return queries.map{|s| parse_char(s)}.inject(:|)
+  end
+
+  def parse_char_out(chars)
+    parser = Parser.build(self) do
+      char = source.read
+      if char && chars.all?{|s| s != char}
+        next Result.success(char)
       else
-        reset
-        break
+        message = "expected other than " + chars.map{|s| "'#{s}'"}.join(", ")
+        next Result.error(error_message(message))
       end
     end
-    if count >= lower_limit
-      return Result.success(values)
-    else
-      return Result.error("")
-    end
+    return parser
   end
 
 end
@@ -106,45 +181,12 @@ class Result
     end
   end
 
-  def !
-    if self.success?
-      return @value
-    else
-      throw(:error, @message)
-    end
-  end
-
-  def |(other)
-    if self.success?
-      return self
-    else
-      return other
-    end
-  end
-
   def success?
     return !@message
   end
 
   def error?
     return !!@message
-  end
-
-  def self.exec(&block)
-    message = catch(:error) do
-      value = block.call
-      return Result.success(value)
-    end
-    return Result.error(message)
-  end
-
-end
-
-
-class ParseError < StandardError
-
-  def initialize(message = "")
-    super(message)
   end
 
 end

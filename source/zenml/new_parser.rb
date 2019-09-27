@@ -9,7 +9,7 @@ include REXML
 
 class ZenithalNewParser
 
-  include Parser
+  include ParserBuilder
 
   TAG_START = "\\"
   MACRO_START = "&"
@@ -29,7 +29,7 @@ class ZenithalNewParser
   SLASH_START = "/"
   SLASH_END = "/"
   COMMENT_DELIMITER = "#"
-  MARKS = {:instruction => "?", :trim => "*", :verbal => "!", :multiple => "+"}
+  MARKS = {:instruction => "?", :trim => "*", :verbal => "~", :multiple => "+"}
   ESCAPE_CHARS = ["&", "<", ">", "'", "\"", "{", "}", "[", "]", "/", "\\", "|", "`", "#"]
   SPACE_CHARS = [0x20, 0x9, 0xD, 0xA]
   VALID_FIRST_IDENTIFIER_CHARS = [
@@ -50,6 +50,7 @@ class ZenithalNewParser
     0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF
   ]
 
+  attr_reader :source
   attr_writer :brace_name
   attr_writer :bracket_name
   attr_writer :slash_name
@@ -67,37 +68,37 @@ class ZenithalNewParser
   end
 
   def parse_element
-    result = Result.exec do
+    parser = Parser.exec(self) do
       !parse_char(TAG_START)
       name = !parse_identifier
       marks = !parse_marks
       next name, marks
     end
-    return result
+    return parser
   end
 
   def parse_marks
-    return many{parse_mark}
+    return parse_mark.many
   end
   
   def parse_mark
-    methods = MARKS.map do |mark, query|
-      method = lambda do
-        result = parse_char(query)
-        result.value = mark
-        next result
-      end
+    parsers = MARKS.map do |mark, query|
+      next parse_char(query).map{|_| mark}
     end
-    return any(methods)
+    return parsers.inject(:|)
   end
 
   def parse_attributes
-    parse_char(ATTRIBUTE_START)
-    parse_char(ATTRIBUTE_END)
+    parser = Parser.exec(self) do
+      !parse_char(ATTRIBUTE_START)
+      !parse_char(ATTRIBUTE_END)
+      next ""
+    end
+    return parser
   end
 
   def parse_attribute
-    result = Result.exec do
+    parser = Parser.exec(self) do
       !parse_space
       name = !parse_identifier
       !parse_space
@@ -107,71 +108,59 @@ class ZenithalNewParser
       !parse_space
       next name, value
     end
-    return result
+    return parser
   end
 
   def parse_quoted_string
-    result = Result.exec do
+    parser = Parser.exec(self) do
       !parse_char(ATTRIBUTE_VALUE_START)
-      texts = !many{any([lambda{parse_quoted_string_text}, lambda{parse_escape}])}
+      texts = !(parse_quoted_string_text | parse_escape).many
       !parse_char(ATTRIBUTE_VALUE_END)
       next texts.join
     end
-    return result
+    return parser
   end
 
   def parse_quoted_string_text
-    result = Result.exec do
-      chars = !many(1){parse_char_exclude([ATTRIBUTE_VALUE_END, ESCAPE_START])}
+    parser = Parser.exec(self) do
+      chars = !parse_char_out([ATTRIBUTE_VALUE_END, ESCAPE_START]).many(1)
       next chars.join
     end
-    return result
+    return parser
   end
 
   def parse_escape
-    result = Result.exec do
+    parser = Parser.exec(self) do
       !parse_char(ESCAPE_START)
-      char = !parse_char_choice(ESCAPE_CHARS)
+      char = !parse_char_any(ESCAPE_CHARS)
       next char
     end
-    return result
+    return parser
   end
 
   def parse_identifier
-    result = Result.exec do
+    parser = Parser.exec(self) do
       first_char = !parse_first_identifier_char
-      rest_chars = !many{parse_middle_identifier_char}
+      rest_chars = !parse_middle_identifier_char.many
       identifier = first_char + rest_chars.join
       next identifier
     end
-    return result
+    return parser
   end
 
   def parse_first_identifier_char
-    return parse_char_choice(VALID_FIRST_IDENTIFIER_CHARS)
+    return parse_char_any(VALID_FIRST_IDENTIFIER_CHARS)
   end
 
   def parse_middle_identifier_char
-    return parse_char_choice(VALID_MIDDLE_IDENTIFIER_CHARS)
+    return parse_char_any(VALID_MIDDLE_IDENTIFIER_CHARS)
   end
 
   def parse_space
-    return many{parse_char_choice(SPACE_CHARS)}
+    return parse_char_any(SPACE_CHARS).many
   end
 
-  def read
-    return @source.read
-  end
-
-  def mark
-    @source.mark
-  end
-
-  def reset
-    @source.reset
-  end
-
-  def create_error_message(message)
+  def error_message(message)
     return "[line #{@source.lineno}] #{message}"
   end
 
