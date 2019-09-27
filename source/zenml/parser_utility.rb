@@ -106,7 +106,7 @@ class Result
     end
   end
 
-  def ~
+  def !
     if self.success?
       return @value
     else

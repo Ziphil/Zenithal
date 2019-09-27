@@ -29,7 +29,7 @@ class ZenithalNewParser
   SLASH_START = "/"
   SLASH_END = "/"
   COMMENT_DELIMITER = "#"
-  MARKS = {:instruction => "?", :trim => "*", :verbal => "~", :multiple => "+"}
+  MARKS = {:instruction => "?", :trim => "*", :verbal => "!", :multiple => "+"}
   ESCAPE_CHARS = ["&", "<", ">", "'", "\"", "{", "}", "[", "]", "/", "\\", "|", "`", "#"]
   SPACE_CHARS = [0x20, 0x9, 0xD, 0xA]
   VALID_FIRST_IDENTIFIER_CHARS = [
@@ -68,9 +68,9 @@ class ZenithalNewParser
 
   def parse_element
     result = Result.exec do
-      ~parse_char(TAG_START)
-      name = ~parse_identifier
-      marks = ~parse_marks
+      !parse_char(TAG_START)
+      name = !parse_identifier
+      marks = !parse_marks
       next name, marks
     end
     return result
@@ -98,13 +98,13 @@ class ZenithalNewParser
 
   def parse_attribute
     result = Result.exec do
-      ~parse_space
-      name = ~parse_identifier
-      ~parse_space
-      ~parse_char(ATTRIBUTE_EQUAL)
-      ~parse_space
-      value = ~parse_quoted_string
-      ~parse_space
+      !parse_space
+      name = !parse_identifier
+      !parse_space
+      !parse_char(ATTRIBUTE_EQUAL)
+      !parse_space
+      value = !parse_quoted_string
+      !parse_space
       next name, value
     end
     return result
@@ -112,9 +112,9 @@ class ZenithalNewParser
 
   def parse_quoted_string
     result = Result.exec do
-      ~parse_char(ATTRIBUTE_VALUE_START)
-      texts = ~many{any([lambda{parse_quoted_string_text}, lambda{parse_escape}])}
-      ~parse_char(ATTRIBUTE_VALUE_END)
+      !parse_char(ATTRIBUTE_VALUE_START)
+      texts = !many{any([lambda{parse_quoted_string_text}, lambda{parse_escape}])}
+      !parse_char(ATTRIBUTE_VALUE_END)
       next texts.join
     end
     return result
@@ -122,7 +122,7 @@ class ZenithalNewParser
 
   def parse_quoted_string_text
     result = Result.exec do
-      chars = ~many(1){parse_char_exclude([ATTRIBUTE_VALUE_END, ESCAPE_START])}
+      chars = !many(1){parse_char_exclude([ATTRIBUTE_VALUE_END, ESCAPE_START])}
       next chars.join
     end
     return result
@@ -130,8 +130,8 @@ class ZenithalNewParser
 
   def parse_escape
     result = Result.exec do
-      ~parse_char(ESCAPE_START)
-      char = ~parse_char_choice(ESCAPE_CHARS)
+      !parse_char(ESCAPE_START)
+      char = !parse_char_choice(ESCAPE_CHARS)
       next char
     end
     return result
@@ -140,8 +140,8 @@ class ZenithalNewParser
   def parse_identifier
     result = Result.exec do
       identifier = ""
-      identifier.concat(~parse_first_identifier_char)
-      identifier.concat(*~many{parse_middle_identifier_char})
+      identifier.concat(!parse_first_identifier_char)
+      identifier.concat(*!many{parse_middle_identifier_char})
       next identifier
     end
     return result
