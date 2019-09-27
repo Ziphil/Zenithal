@@ -110,7 +110,7 @@ class Result
     if self.success?
       return @value
     else
-      raise ParseError.new(@message)
+      throw(:error, @message)
     end
   end
 
@@ -131,12 +131,11 @@ class Result
   end
 
   def self.exec(&block)
-    begin
+    message = catch(:error) do
       value = block.call
       return Result.success(value)
-    rescue ParseError => error
-      return Result.error(error.message)
     end
+    return Result.error(message)
   end
 
 end
