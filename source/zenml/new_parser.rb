@@ -95,79 +95,6 @@ class ZenithalNewParser
     return parser
   end
 
-  def create_nodes(name, marks, attributes, children_list)
-    nodes = Nodes[]
-    unless marks.include?(:macro)
-      if marks.include?(:instruction)
-        unless children_list.size <= 1
-          throw(:error, error_message("Processing instruction cannot have more than one argument"))
-        end
-        nodes = create_instructions(name, attributes, children_list.first)
-      else
-        unless marks.include?(:multiple) || children_list.size <= 1
-          throw(:error, error_message("Normal node cannot have more than one argument"))
-        end
-        nodes = create_elements(name, attributes, children_list)
-      end
-    else
-      nodes = process_macro(name, attributes, children_list)
-    end
-    return nodes
-  end
-
-  def create_instructions(target, attributes, children)
-    instructions = Nodes[]
-    if target == SYSTEM_INSTRUCTION_NAME
-      @version = attributes["version"] if attributes["version"]
-      @brace_name = attributes["brace"] if attributes["brace"]
-      @bracket_name = attributes["bracket"] if attributes["bracket"]
-      @slash_name = attributes["slash"] if attributes["slash"]
-    elsif target == "xml"
-      instruction = XMLDecl.new
-      instruction.version = attributes["version"] || XMLDecl::DEFAULT_VERSION
-      instruction.encoding = attributes["encoding"]
-      instruction.standalone = attributes["standalone"]
-      instructions << instruction
-    else
-      instruction = Instruction.new(target)
-      actual_contents = []
-      attributes.each do |key, value|
-        actual_contents << "#{key}=\"#{value}\""
-      end
-      if children.first && !children.first.empty?
-        actual_contents << children.first
-      end
-      instruction.content = actual_contents.join(" ")
-      instructions << instruction
-    end
-    return instructions
-  end
-
-  def create_elements(name, attributes, children_list)
-    elements = Nodes[]
-    children_list.each do |children|
-      element = Element.new(name)
-      attributes.each do |key, value|
-        element.add_attribute(key, value)
-      end
-      children.each do |child|
-        element.add(child)
-      end
-      elements << element
-    end
-    return elements
-  end
-
-  def process_macro(name, attributes, children_list)
-    elements = Nodes[]
-    if @macros.key?(name)
-      elements = @macros[name].call(attributes, children_list)    
-    else
-      throw(:error, error_message("No such macro"))
-    end
-    return elements
-  end
-
   def parse_marks
     return parse_mark.many
   end
@@ -211,14 +138,14 @@ class ZenithalNewParser
   def parse_quoted_string
     parser = Parser.exec(self) do
       !parse_char(ATTRIBUTE_VALUE_START)
-      texts = !(parse_quoted_string_content | parse_escape).many
+      texts = !(parse_quoted_string_plain | parse_escape).many
       !parse_char(ATTRIBUTE_VALUE_END)
       next texts.join
     end
     return parser
   end
 
-  def parse_quoted_string_content
+  def parse_quoted_string_plain
     parser = Parser.exec(self) do
       chars = !parse_char_out([ATTRIBUTE_VALUE_END, ESCAPE_START]).many(1)
       next chars.join
@@ -306,6 +233,83 @@ class ZenithalNewParser
 
   def parse_space
     return parse_char_any(SPACE_CHARS).many
+  end
+
+  def create_nodes(name, marks, attributes, children_list)
+    nodes = Nodes[]
+    unless marks.include?(:macro)
+      if marks.include?(:instruction)
+        unless children_list.size <= 1
+          throw(:error, error_message("Processing instruction cannot have more than one argument"))
+        end
+        nodes = create_instructions(name, attributes, children_list.first)
+      else
+        unless marks.include?(:multiple) || children_list.size <= 1
+          throw(:error, error_message("Normal node cannot have more than one argument"))
+        end
+        nodes = create_elements(name, attributes, children_list)
+      end
+    else
+      nodes = process_macro(name, attributes, children_list)
+    end
+    return nodes
+  end
+
+  def create_instructions(target, attributes, children)
+    instructions = Nodes[]
+    if target == SYSTEM_INSTRUCTION_NAME
+      @version = attributes["version"] if attributes["version"]
+      @brace_name = attributes["brace"] if attributes["brace"]
+      @bracket_name = attributes["bracket"] if attributes["bracket"]
+      @slash_name = attributes["slash"] if attributes["slash"]
+    elsif target == "xml"
+      instruction = XMLDecl.new
+      instruction.version = attributes["version"] || XMLDecl::DEFAULT_VERSION
+      instruction.encoding = attributes["encoding"]
+      instruction.standalone = attributes["standalone"]
+      instructions << instruction
+    else
+      instruction = Instruction.new(target)
+      actual_contents = []
+      attributes.each do |key, value|
+        actual_contents << "#{key}=\"#{value}\""
+      end
+      if children.first && !children.first.empty?
+        actual_contents << children.first
+      end
+      instruction.content = actual_contents.join(" ")
+      instructions << instruction
+    end
+    return instructions
+  end
+
+  def create_elements(name, attributes, children_list)
+    elements = Nodes[]
+    children_list.each do |children|
+      element = Element.new(name)
+      attributes.each do |key, value|
+        element.add_attribute(key, value)
+      end
+      children.each do |child|
+        element.add(child)
+      end
+      elements << element
+    end
+    return elements
+  end
+
+  def process_macro(name, attributes, children_list)
+    elements = Nodes[]
+    if @macros.key?(name)
+      elements = @macros[name].call(attributes, children_list)    
+    else
+      throw(:error, error_message("No such macro"))
+    end
+    return elements
+  end
+
+  def register_macro(name, &block)
+    @macros.store(name, block)
   end
 
   def error_message(message)
