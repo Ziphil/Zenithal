@@ -49,12 +49,12 @@ class Parser
     this = self
     if this.builder.equal?(other.builder)
       parser = Parser.new(this.builder) do
-        source.mark
+        mark = source.mark
         result = this.parse
         if result.success?
           next result
         else
-          source.reset
+          source.reset(mark)
           result = other.parse
           next result
         end
@@ -70,7 +70,7 @@ class Parser
     parser = Parser.new(this.builder) do
       values, count = [], 0
       loop do
-        source.mark
+        mark = source.mark
         each_result = this.parse
         if each_result.success?
           values << each_result.value
@@ -79,7 +79,7 @@ class Parser
             break
           end
         else
-          source.reset
+          source.reset(mark)
           break
         end
       end
@@ -153,6 +153,18 @@ module ParserBuilder
       else
         message = "expected other than " + chars.map{|s| "'#{s}'"}.join(", ")
         next Result.error(error_message(message))
+      end
+    end
+    return parser
+  end
+
+  def parse_eof
+    parser = Parser.build(self) do
+      char = source.read
+      if char == nil
+        next Result.success(true)
+      else
+        next Result.error(error_message("End of file reached"))
       end
     end
     return parser
