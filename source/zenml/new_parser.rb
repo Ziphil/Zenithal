@@ -82,13 +82,16 @@ class ZenithalNewParser
 
   def parse_element
     parser = Parser.exec(self) do
-      !parse_char(TAG_START)
+      start_char = !parse_char_any([TAG_START, MACRO_START])
       name = !parse_identifier
       marks = !parse_marks
       attributes = !parse_attributes.maybe || {}
       children_list = !parse_children_list
       if name == SYSTEM_INSTRUCTION_NAME
         !parse_space
+      end
+      if start_char == MACRO_START
+        marks.push(:macro)
       end
       next create_nodes(name, marks, attributes, children_list)
     end
