@@ -152,17 +152,23 @@ class ZenithalParser
 
   def parse_attribute(comma)
     parser = Parser.build(self) do
-      if comma
-        !parse_char(ATTRIBUTE_SEPARATOR)
-      end
+      !parse_char(ATTRIBUTE_SEPARATOR) if comma
       !parse_space
       name = !parse_identifier
       !parse_space
+      value = !parse_attribute_value.maybe || name
+      !parse_space
+      next {name => value}
+    end
+    return parser
+  end
+
+  def parse_attribute_value
+    parser = Parser.build(self) do
       !parse_char(ATTRIBUTE_EQUAL)
       !parse_space
       value = !parse_quoted_string
-      !parse_space
-      next {name => value}
+      next value
     end
     return parser
   end
