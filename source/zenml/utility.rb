@@ -98,6 +98,33 @@ class Nodes < Array
     return Nodes.new(super(other))
   end
 
+  def trim_indents
+    texts = []
+    if self.last.is_a?(Text)
+      self.last.value = self.last.value.rstrip
+    end
+    self.each do |child|
+      case child
+      when Text
+        texts << child
+      when Element
+        texts.concat(child.get_texts_recursive)
+      end
+    end
+    indent_length = Float::INFINITY
+    texts.each do |text|
+      text.value.scan(/\n(\x20+)/) do |match|
+        indent_length = [match[0].length, indent_length].min
+      end
+    end
+    texts.each do |text|
+      text.value = text.value.gsub(/\n(\x20+)/){"\n" + " " * ($1.length - indent_length)}
+    end
+    if self.first.is_a?(Text)
+      self.first.value = self.first.value.lstrip
+    end
+  end
+
 end
 
 

@@ -317,7 +317,7 @@ class ZenithalParser
     unless marks.include?(:macro)
       if marks.include?(:trim)
         children_list.each do |children|
-          ZenithalParser.trim_indents(children)
+          children.trim_indents
         end
       end
       if marks.include?(:instruction)
@@ -392,33 +392,6 @@ class ZenithalParser
 
   def register_macro(name, &block)
     @macros.store(name, block)
-  end
-
-  def self.trim_indents(children)
-    texts = []
-    if children.last.is_a?(Text)
-      children.last.value = children.last.value.rstrip
-    end
-    children.each do |child|
-      case child
-      when Text
-        texts << child
-      when Element
-        texts.concat(child.get_texts_recursive)
-      end
-    end
-    indent_length = Float::INFINITY
-    texts.each do |text|
-      text.value.scan(/\n(\x20+)/) do |match|
-        indent_length = [match[0].length, indent_length].min
-      end
-    end
-    texts.each do |text|
-      text.value = text.value.gsub(/\n(\x20+)/){"\n" + " " * ($1.length - indent_length)}
-    end
-    if children.first.is_a?(Text)
-      children.first.value = children.first.value.lstrip
-    end
   end
 
   def brace_name=(name)
