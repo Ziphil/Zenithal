@@ -41,6 +41,19 @@ class Element
     end
   end
 
+  def get_texts_recursive
+    texts = []
+    self.children.each do |child|
+      case child
+      when Text
+        texts << child
+      when Element
+        texts.concat(child.get_texts_recursive)
+      end
+    end
+    return texts
+  end
+
   def self.build(name, &block)
     element = Element.new(name)
     block.call(element)

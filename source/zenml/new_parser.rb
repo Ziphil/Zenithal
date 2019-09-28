@@ -80,9 +80,12 @@ class ZenithalNewParser
 
   def parse_nodes(verbal)
     parser = Parser.exec(self) do
-      parsers = [parse_element, parse_text(verbal), parse_line_comment, parse_block_comment]
-      @special_element_names.each do |kind, name|
-        parsers.push(parse_special_element(kind))
+      parsers = [parse_text(verbal)]
+      unless verbal
+        parsers.push(parse_element, parse_line_comment, parse_block_comment)
+        @special_element_names.each do |kind, name|
+          parsers.push(parse_special_element(kind))
+        end
       end
       nodes = Nodes[]
       raw_nodes = !parsers.inject(:|).many
@@ -100,7 +103,7 @@ class ZenithalNewParser
       name = !parse_identifier
       marks = !parse_marks
       attributes = !parse_attributes.maybe || {}
-      children_list = !parse_children_list
+      children_list = !parse_children_list(marks.include?(:verbal))
       if name == SYSTEM_INSTRUCTION_NAME
         !parse_space
       end
@@ -183,20 +186,20 @@ class ZenithalNewParser
     return parser
   end
 
-  def parse_children_list
+  def parse_children_list(verbal)
     parser = Parser.exec(self) do
-      first_children = !(parse_empty_children | parse_children)
-      rest_children_list = !parse_children.many
+      first_children = !(parse_empty_children | parse_children(verbal))
+      rest_children_list = !parse_children(verbal).many
       children_list = [first_children] + rest_children_list
       next children_list
     end
     return parser
   end
 
-  def parse_children
+  def parse_children(verbal)
     parser = Parser.exec(self) do
       !parse_char(CONTENT_START)
-      children = !parse_nodes(false)
+      children = !parse_nodes(verbal)
       !parse_char(CONTENT_END)
       next children
     end
@@ -307,6 +310,11 @@ class ZenithalNewParser
   def create_nodes(name, marks, attributes, children_list)
     nodes = Nodes[]
     unless marks.include?(:macro)
+      if marks.include?(:trim)
+        children_list.each do |children|
+          ZenithalNewParser.trim_indents(children)
+        end
+      end
       if marks.include?(:instruction)
         unless children_list.size <= 1
           throw(:error, error_message("Processing instruction cannot have more than one argument"))
@@ -379,6 +387,33 @@ class ZenithalNewParser
 
   def register_macro(name, &block)
     @macros.store(name, block)
+  end
+
+  def self.trim_indents(children)
+    texts = []
+    if children.last.is_a?(Text)
+      children.last.value = children.last.value.rstrip
+    end
+    children.each do |child|
+      case child
+      when Text
+        texts << child
+      when Element
+        texts.concat(child.get_texts_recursive)
+      end
+    end
+    indent_length = Float::INFINITY
+    texts.each do |text|
+      text.value.scan(/\n(\x20+)/) do |match|
+        indent_length = [match[0].length, indent_length].min
+      end
+    end
+    texts.each do |text|
+      text.value = text.value.gsub(/\n(\x20+)/){"\n" + " " * ($1.length - indent_length)}
+    end
+    if children.first.is_a?(Text)
+      children.first.value = children.first.value.lstrip
+    end
   end
 
   def brace_name=(name)
