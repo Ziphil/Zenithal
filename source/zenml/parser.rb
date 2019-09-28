@@ -6,9 +6,7 @@ require 'rexml/document'
 include REXML
 
 
-class ZenithalParser
-
-  include CommonParser
+module ZenithalParserMethod
 
   ELEMENT_START = "\\"
   MACRO_START = "&"
@@ -46,23 +44,7 @@ class ZenithalParser
     0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF
   ]
 
-  attr_reader :source
-
-  def initialize(source)
-    @source = StringReader.new(source)
-    @version = nil
-    @special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
-    @macros = {}
-  end
-
-  def parse
-    result = parse_document.exec
-    if result.success?
-      return result.value
-    else
-      raise ZenithalParseError.new(result.message)
-    end
-  end
+  private
 
   def parse_document
     parser = Parser.build(self) do
@@ -393,6 +375,36 @@ class ZenithalParser
     return elements
   end
 
+  def error_message(message)
+    return "[line #{@source.lineno}] #{message}"
+  end
+
+end
+
+
+class ZenithalParser
+
+  include CommonParserMethod
+  include ZenithalParserMethod
+
+  attr_reader :source
+
+  def initialize(source)
+    @source = StringReader.new(source)
+    @version = nil
+    @special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
+    @macros = {}
+  end
+
+  def parse
+    result = parse_document.exec
+    if result.success?
+      return result.value
+    else
+      raise ZenithalParseError.new(result.message)
+    end
+  end
+
   def register_macro(name, &block)
     @macros.store(name, block)
   end
@@ -407,10 +419,6 @@ class ZenithalParser
 
   def slash_name=(name)
     @special_element_names[:slash] = name
-  end
-
-  def error_message(message)
-    return "[line #{@source.lineno}] #{message}"
   end
 
 end

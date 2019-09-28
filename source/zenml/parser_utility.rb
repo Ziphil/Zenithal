@@ -105,8 +105,13 @@ class Parser
 end
 
 
-module CommonParser
-  
+module CommonParserMethod
+
+  private
+
+  # Parses a single character which matches the specified query.
+  # If the next character does not match the query or the end of file is reached, an error result is returned.
+  # Otherwise, a success result with a string containing the matched chracter is returned.
   def parse_char(query)
     parser = Parser.new(self) do
       char = source.read
@@ -138,10 +143,14 @@ module CommonParser
     return parser
   end
 
+  # Parses a single character which matches any of the specified queries.
   def parse_char_any(queries)
     return queries.map{|s| parse_char(s)}.inject(:|)
   end
 
+  # Parses a single character other than the specified characters.
+  # If the next character coincides with any of the elements of the arguments, an error result is returned.
+  # Otherwise, a success result with a string containing the next chracter is returned.
   def parse_char_out(chars)
     parser = Parser.new(self) do
       char = source.read
@@ -167,6 +176,8 @@ module CommonParser
     return parser
   end
 
+  # Returns a parser which always fails.
+  # That is, it always returns an error result.
   def parse_none
     parser = Parser.new(self) do
       next Result.error(error_message("This cannot happen"))
