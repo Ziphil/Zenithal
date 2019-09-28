@@ -3,7 +3,6 @@
 
 require 'pp'
 require 'rexml/document'
-require_relative 'parser_utility'
 include REXML
 
 
