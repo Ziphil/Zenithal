@@ -9,7 +9,7 @@ include REXML
 
 class ZenithalNewParser
 
-  include ParserBuilder
+  include CommonParser
 
   ELEMENT_START = "\\"
   MACRO_START = "&"
@@ -57,7 +57,7 @@ class ZenithalNewParser
   end
 
   def parse
-    result = parse_document.parse
+    result = parse_document.exec
     if result.success?
       return result.value
     else
@@ -66,7 +66,7 @@ class ZenithalNewParser
   end
 
   def parse_document
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       document = Document.new
       children = !parse_nodes(false)
       !parse_eof
@@ -79,7 +79,7 @@ class ZenithalNewParser
   end
 
   def parse_nodes(verbal)
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       parsers = [parse_text(verbal)]
       unless verbal
         parsers.push(parse_element, parse_line_comment, parse_block_comment)
@@ -98,7 +98,7 @@ class ZenithalNewParser
   end
 
   def parse_element
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       start_char = !parse_char_any([ELEMENT_START, MACRO_START])
       name = !parse_identifier
       marks = !parse_marks
@@ -116,7 +116,7 @@ class ZenithalNewParser
   end
 
   def parse_special_element(kind)
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       unless @special_element_names[kind]
         !parse_none
       end
@@ -140,7 +140,7 @@ class ZenithalNewParser
   end
 
   def parse_attributes
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       !parse_char(ATTRIBUTE_START)
       first_attribute = !parse_attribute(false)
       rest_attribtues = !parse_attribute(true).many
@@ -152,7 +152,7 @@ class ZenithalNewParser
   end
 
   def parse_attribute(comma)
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       if comma
         !parse_char(ATTRIBUTE_SEPARATOR)
       end
@@ -169,7 +169,7 @@ class ZenithalNewParser
   end
 
   def parse_quoted_string
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       !parse_char(ATTRIBUTE_VALUE_START)
       texts = !(parse_quoted_string_plain | parse_escape).many
       !parse_char(ATTRIBUTE_VALUE_END)
@@ -179,7 +179,7 @@ class ZenithalNewParser
   end
 
   def parse_quoted_string_plain
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       chars = !parse_char_out([ATTRIBUTE_VALUE_END, ESCAPE_START]).many(1)
       next chars.join
     end
@@ -187,7 +187,7 @@ class ZenithalNewParser
   end
 
   def parse_children_list(verbal)
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       first_children = !(parse_empty_children | parse_children(verbal))
       rest_children_list = !parse_children(verbal).many
       children_list = [first_children] + rest_children_list
@@ -197,7 +197,7 @@ class ZenithalNewParser
   end
 
   def parse_children(verbal)
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       !parse_char(CONTENT_START)
       children = !parse_nodes(verbal)
       !parse_char(CONTENT_END)
@@ -207,7 +207,7 @@ class ZenithalNewParser
   end
 
   def parse_empty_children
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       !parse_char(CONTENT_END)
       next Nodes[]
     end
@@ -215,7 +215,7 @@ class ZenithalNewParser
   end
 
   def parse_text(verbal)
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       texts = !(parse_text_plain(verbal) | parse_escape).many(1)
       next Text.new(texts.join, true, nil, false)
     end
@@ -223,7 +223,7 @@ class ZenithalNewParser
   end
 
   def parse_text_plain(verbal)
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       out_chars = [ESCAPE_START, CONTENT_END]
       unless verbal
         out_chars.push(ELEMENT_START, MACRO_START, CONTENT_START, COMMENT_DELIMITER)
@@ -238,7 +238,7 @@ class ZenithalNewParser
   end
 
   def parse_line_comment
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       !parse_char(COMMENT_DELIMITER)
       !parse_char(COMMENT_DELIMITER)
       content = !parse_line_comment_content
@@ -248,7 +248,7 @@ class ZenithalNewParser
   end
 
   def parse_line_comment_content
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       chars = !parse_char_out(["\n"]).many
       !parse_char("\n")
       next chars.join
@@ -257,7 +257,7 @@ class ZenithalNewParser
   end
 
   def parse_block_comment
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       !parse_char(COMMENT_DELIMITER)
       !parse_char(CONTENT_START)
       content = !parse_block_comment_content
@@ -269,7 +269,7 @@ class ZenithalNewParser
   end
 
   def parse_block_comment_content
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       chars = !parse_char_out([CONTENT_END]).many
       next chars.join
     end
@@ -277,7 +277,7 @@ class ZenithalNewParser
   end
 
   def parse_escape
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       !parse_char(ESCAPE_START)
       char = !parse_char_any(ESCAPE_CHARS)
       next char
@@ -286,7 +286,7 @@ class ZenithalNewParser
   end
 
   def parse_identifier
-    parser = Parser.exec(self) do
+    parser = Parser.build(self) do
       first_char = !parse_first_identifier_char
       rest_chars = !parse_middle_identifier_char.many
       identifier = first_char + rest_chars.join

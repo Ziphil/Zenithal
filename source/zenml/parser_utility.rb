@@ -12,13 +12,6 @@ class Parser
 
   def self.build(source, &block)
     parser = Parser.new(source) do
-      next block.call
-    end
-    return parser
-  end
-
-  def self.exec(source, &block)
-    parser = Parser.new(source) do
       value = nil
       message = catch(:error) do
         value = block.call
@@ -32,12 +25,12 @@ class Parser
     return parser
   end
 
-  def parse
+  def exec
     return @builder.instance_eval(&@method)
   end
 
   def !
-    result = self.parse
+    result = self.exec
     if result.success?
       return result.value
     else
@@ -50,12 +43,12 @@ class Parser
     if this.builder.equal?(other.builder)
       parser = Parser.new(this.builder) do
         mark = source.mark
-        result = this.parse
+        result = this.exec
         if result.success?
           next result
         else
           source.reset(mark)
-          result = other.parse
+          result = other.exec
           next result
         end
       end
@@ -71,7 +64,7 @@ class Parser
       values, count = [], 0
       loop do
         mark = source.mark
-        each_result = this.parse
+        each_result = this.exec
         if each_result.success?
           values << each_result.value
           count += 1
@@ -99,7 +92,7 @@ class Parser
   def map(&block)
     this = self
     parser = Parser.new(this.builder) do
-      result = this.parse
+      result = this.exec
       if result.success?
         next Result.success(block.call(result.value))
       else
@@ -112,10 +105,10 @@ class Parser
 end
 
 
-module ParserBuilder
+module CommonParser
   
   def parse_char(query)
-    parser = Parser.build(self) do
+    parser = Parser.new(self) do
       char = source.read
       predicate, message = false, nil
       case query
@@ -146,7 +139,7 @@ module ParserBuilder
   end
 
   def parse_char_out(chars)
-    parser = Parser.build(self) do
+    parser = Parser.new(self) do
       char = source.read
       if char && chars.all?{|s| s != char}
         next Result.success(char)
@@ -159,7 +152,7 @@ module ParserBuilder
   end
 
   def parse_eof
-    parser = Parser.build(self) do
+    parser = Parser.new(self) do
       char = source.read
       if char == nil
         next Result.success(true)
@@ -171,7 +164,7 @@ module ParserBuilder
   end
 
   def parse_none
-    parser = Parser.build(self) do
+    parser = Parser.new(self) do
       next Result.error(error_message("This cannot happen"))
     end
     return parser
