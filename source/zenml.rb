@@ -11,7 +11,6 @@ module Zenithal
   require 'zenml/error'
   require 'zenml/reader'
   require 'zenml/parser'
-  require 'zenml/new_parser'
   require 'zenml/converter'
 
 end

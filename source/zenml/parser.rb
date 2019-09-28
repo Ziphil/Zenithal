@@ -3,12 +3,15 @@
 
 require 'pp'
 require 'rexml/document'
+require_relative 'parser_utility'
 include REXML
 
 
 class ZenithalParser
 
-  TAG_START = "\\"
+  include CommonParser
+
+  ELEMENT_START = "\\"
   MACRO_START = "&"
   ESCAPE_START = "`"
   ATTRIBUTE_START = "|"
@@ -19,262 +22,307 @@ class ZenithalParser
   ATTRIBUTE_SEPARATOR = ","
   CONTENT_START = "<"
   CONTENT_END = ">"
-  BRACE_START = "{"
-  BRACE_END = "}"
-  BRACKET_START = "["
-  BRACKET_END = "]"
-  SLASH_START = "/"
-  SLASH_END = "/"
+  SPECIAL_ELEMENT_STARTS = {:brace => "{", :bracket => "[", :slash => "/"}
+  SPECIAL_ELEMENT_ENDS = {:brace => "}", :bracket => "]", :slash => "/"}
   COMMENT_DELIMITER = "#"
-  INSTRUCTION_MARK = "?"
-  TRIM_MARK = "*"
-  VERBAL_MARK = "~"
-  MULTIPLE_MARK = "+"
   SYSTEM_INSTRUCTION_NAME = "zml"
-  ENTITIES = {"amp" => "&", "lt" => "<", "gt" => ">", "apos" => "'", "quot" => "\"",
-              "lcub" => "{",  "rcub" => "}", "lbrace" => "{",  "rbrace" => "}", "lsqb" => "[",  "rsqb" => "]", "lbrack" => "[",  "rbrack" => "]",
-              "sol" => "/", "bsol" => "\\", "verbar" => "|", "vert" => "|", "grave" => "`", "num" => "#"}
-  ESCAPES = ["&", "<", ">", "'", "\"", "{", "}", "[", "]", "/", "\\", "|", "`", "#"]
-  VALID_START_CHARS = [0x3A, 0x41..0x5A, 0x5F, 0x61..0x7A, 0xC0..0xD6, 0xD8..0xF6, 0xF8..0x2FF, 0x370..0x37D, 0x37F..0x1FFF, 0x200C..0x200D, 
-                       0x2070..0x218F, 0x2C00..0x2FEF, 0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF]
-  VALID_MIDDLE_CHARS = [0x2D, 0x2E, 0x30..0x39, 0xB7, 0x0300..0x036F, 0x203F..0x2040]
+  MARKS = {:instruction => "?", :trim => "*", :verbal => "~", :multiple => "+"}
+  ESCAPE_CHARS = ["&", "<", ">", "'", "\"", "{", "}", "[", "]", "/", "\\", "|", "`", "#"]
+  SPACE_CHARS = [0x20, 0x9, 0xD, 0xA]
+  VALID_FIRST_IDENTIFIER_CHARS = [
+    0x3A, 0x5F,
+    0x41..0x5A, 0x61..0x7A, 0xC0..0xD6, 0xD8..0xF6, 0xF8..0x2FF,
+    0x370..0x37D, 0x37F..0x1FFF,
+    0x200C..0x200D, 0x2070..0x218F, 0x2C00..0x2FEF,
+    0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF
+  ]
+  VALID_MIDDLE_IDENTIFIER_CHARS = [
+    0x2D, 0x2E, 0x3A, 0x5F, 0xB7, 
+    0x30..0x39,
+    0x41..0x5A, 0x61..0x7A, 0xC0..0xD6, 0xD8..0xF6, 0xF8..0x2FF,
+    0x300..0x36F,
+    0x370..0x37D, 0x37F..0x1FFF,
+    0x200C..0x200D, 0x2070..0x218F, 0x2C00..0x2FEF,
+    0x203F..0x2040,
+    0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF
+  ]
 
-  attr_writer :brace_name
-  attr_writer :bracket_name
-  attr_writer :slash_name
+  attr_reader :source
 
   def initialize(source)
     @source = StringReader.new(source)
     @version = nil
-    @brace_name = nil
-    @bracket_name = nil
-    @slash_name = nil
+    @special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
     @macros = {}
   end
 
   def parse
-    document = Document.new
-    children = parse_nodes
-    children.each do |child|
-      document.add(child)
+    result = parse_document.exec
+    if result.success?
+      return result.value
+    else
+      raise ZenithalParseError.new(result.message)
     end
-    return document
   end
 
-  def parse_nodes(option = {}, in_slash = false)
-    children = []
-    while char = @source.read
-      if char == TAG_START || char == MACRO_START
-        @source.unread
-        children.concat(parse_element)
-      elsif @brace_name && char == BRACE_START
-        @source.unread
-        children << parse_brace
-      elsif @bracket_name && char == BRACKET_START
-        @source.unread
-        children << parse_bracket
-      elsif @slash_name && !in_slash && char == SLASH_START
-        @source.unread
-        children << parse_slash
-      elsif char == COMMENT_DELIMITER
-        @source.unread
-        children << parse_comment
-      elsif char == CONTENT_END || (@brace_name && char == BRACE_END) || (@bracket_name && char == BRACKET_END) || (@slash_name && char == SLASH_END)
-        @source.unread
-        break
-      else
-        @source.unread
-        children << parse_text(option)
+  def parse_document
+    parser = Parser.build(self) do
+      document = Document.new
+      children = !parse_nodes(false)
+      !parse_eof
+      children.each do |child|
+        document.add(child)
       end
+      next document
     end
-    return children
+    return parser
   end
 
-  def parse_verbal_nodes(option = {})
-    children = []
-    while char = @source.read
-      next_char = @source.peek
-      if char == CONTENT_END
-        @source.unread
-        break
-      else
-        @source.unread
-        children << parse_verbal_text(option)
+  def parse_nodes(verbal)
+    parser = Parser.build(self) do
+      parsers = [parse_text(verbal)]
+      unless verbal
+        parsers.push(parse_element, parse_line_comment, parse_block_comment)
+        @special_element_names.each do |kind, name|
+          parsers.push(parse_special_element(kind))
+        end
       end
+      nodes = Nodes[]
+      raw_nodes = !parsers.inject(:|).many
+      raw_nodes.each do |raw_node|
+        nodes << raw_node
+      end
+      next nodes
     end
-    return children
+    return parser
   end
 
   def parse_element
-    first_char = @source.read
-    unless first_char == TAG_START || first_char == MACRO_START
-      raise ZenithalParseError.new(@source)
+    parser = Parser.build(self) do
+      start_char = !parse_char_any([ELEMENT_START, MACRO_START])
+      name = !parse_identifier
+      marks = !parse_marks
+      attributes = !parse_attributes.maybe || {}
+      children_list = !parse_children_list(marks.include?(:verbal))
+      if name == SYSTEM_INSTRUCTION_NAME
+        !parse_space
+      end
+      if start_char == MACRO_START
+        marks.push(:macro)
+      end
+      next create_nodes(name, marks, attributes, children_list)
     end
-    name, option = parse_element_name
-    if first_char == MACRO_START
-      option[:macro] = true
-    end
-    attributes = parse_attributes
-    children_list = parse_children_list(option)
-    nodes = create_nodes(name, attributes, children_list, option)
-    return nodes
+    return parser
   end
 
-  def parse_element_name
-    name, marks, option = "", [], {}
-    while char = @source.read
-      if char == ATTRIBUTE_START || char == CONTENT_START || char == CONTENT_END || char =~ /\s/
-        @source.unread
-        break
-      elsif char == INSTRUCTION_MARK || char == TRIM_MARK || char == VERBAL_MARK || char == MULTIPLE_MARK
-        marks << char
-      elsif name.empty? && marks.empty? && ZenithalParser.valid_start_char?(char)
-        name << char
-      elsif !name.empty? && marks.empty? && ZenithalParser.valid_char?(char)
-        name << char
-      else
-        raise ZenithalParseError.new(@source)
+  def parse_special_element(kind)
+    parser = Parser.build(self) do
+      unless @special_element_names[kind]
+        !parse_none
       end
+      !parse_char(SPECIAL_ELEMENT_STARTS[kind])
+      children = !parse_nodes(false)
+      !parse_char(SPECIAL_ELEMENT_ENDS[kind])
+      next create_nodes(@special_element_names[kind], [], {}, [children])
     end
-    skip_spaces
-    if marks.include?(INSTRUCTION_MARK)
-      option[:instruction] = true
+    return parser
+  end
+
+  def parse_marks
+    return parse_mark.many
+  end
+  
+  def parse_mark
+    parsers = MARKS.map do |mark, query|
+      next parse_char(query).map{|_| mark}
     end
-    if marks.include?(TRIM_MARK)
-      option[:trim_indents] = true
-    end
-    if marks.include?(VERBAL_MARK)
-      option[:verbal] = true
-    end
-    if marks.include?(MULTIPLE_MARK)
-      option[:multiple] = true
-    end
-    return name, option
+    return parsers.inject(:|)
   end
 
   def parse_attributes
-    attributes = {}
-    if @source.read == ATTRIBUTE_START
-      current_key = nil
-      skip_spaces
-      loop do
-        key, value = parse_attribute
-        attributes[key] = value
-        char = @source.read
-        if char == ATTRIBUTE_SEPARATOR
-          skip_spaces
-        elsif char == ATTRIBUTE_END
-          @source.unread
-          break
-        else
-          raise ZenithalParseError.new(@source)
-        end
-      end
-      unless @source.read == ATTRIBUTE_END
-        raise ZenithalParseError.new(@source)
-      end
-    else
-      @source.unread
+    parser = Parser.build(self) do
+      !parse_char(ATTRIBUTE_START)
+      first_attribute = !parse_attribute(false)
+      rest_attribtues = !parse_attribute(true).many
+      attributes = first_attribute.merge(*rest_attribtues)
+      !parse_char(ATTRIBUTE_END)
+      next attributes
     end
-    return attributes
+    return parser
   end
 
-  def parse_attribute
-    key = parse_attribute_key
-    skip_spaces
-    if @source.read == ATTRIBUTE_EQUAL
-      skip_spaces
-      value = parse_attribute_value
-    else
-      @source.unread
-      value = key
-    end
-    skip_spaces
-    return key, value
-  end
-
-  def parse_attribute_key
-    key = ""
-    while char = @source.read
-      if char == ATTRIBUTE_EQUAL || char == ATTRIBUTE_END || char =~ /\s/
-        @source.unread
-        break
-      elsif key.empty? && ZenithalParser.valid_start_char?(char)
-        key << char
-      elsif !key.empty? && ZenithalParser.valid_char?(char)
-        key << char
-      else
-        raise ZenithalParseError.new(@source)
+  def parse_attribute(comma)
+    parser = Parser.build(self) do
+      if comma
+        !parse_char(ATTRIBUTE_SEPARATOR)
       end
+      !parse_space
+      name = !parse_identifier
+      !parse_space
+      !parse_char(ATTRIBUTE_EQUAL)
+      !parse_space
+      value = !parse_quoted_string
+      !parse_space
+      next {name => value}
     end
-    return key
+    return parser
   end
 
-  def parse_attribute_value
-    unless @source.read == ATTRIBUTE_VALUE_START
-      raise ZenithalParseError.new(@source)
+  def parse_quoted_string
+    parser = Parser.build(self) do
+      !parse_char(ATTRIBUTE_VALUE_START)
+      texts = !(parse_quoted_string_plain | parse_escape).many
+      !parse_char(ATTRIBUTE_VALUE_END)
+      next texts.join
     end
-    value = ""
-    while char = @source.read
-      next_char = @source.peek
-      if char == ATTRIBUTE_VALUE_END
-        break
-      elsif char == ESCAPE_START && ESCAPES.include?(next_char)
-        @source.unread
-        value << parse_escape_string
-      else
-        value << char
+    return parser
+  end
+
+  def parse_quoted_string_plain
+    parser = Parser.build(self) do
+      chars = !parse_char_out([ATTRIBUTE_VALUE_END, ESCAPE_START]).many(1)
+      next chars.join
+    end
+    return parser
+  end
+
+  def parse_children_list(verbal)
+    parser = Parser.build(self) do
+      first_children = !(parse_empty_children | parse_children(verbal))
+      rest_children_list = !parse_children(verbal).many
+      children_list = [first_children] + rest_children_list
+      next children_list
+    end
+    return parser
+  end
+
+  def parse_children(verbal)
+    parser = Parser.build(self) do
+      !parse_char(CONTENT_START)
+      children = !parse_nodes(verbal)
+      !parse_char(CONTENT_END)
+      next children
+    end
+    return parser
+  end
+
+  def parse_empty_children
+    parser = Parser.build(self) do
+      !parse_char(CONTENT_END)
+      next Nodes[]
+    end
+    return parser
+  end
+
+  def parse_text(verbal)
+    parser = Parser.build(self) do
+      texts = !(parse_text_plain(verbal) | parse_escape).many(1)
+      next Text.new(texts.join, true, nil, false)
+    end
+    return parser
+  end
+
+  def parse_text_plain(verbal)
+    parser = Parser.build(self) do
+      out_chars = [ESCAPE_START, CONTENT_END]
+      unless verbal
+        out_chars.push(ELEMENT_START, MACRO_START, CONTENT_START, COMMENT_DELIMITER)
+        @special_element_names.each do |kind, name|
+          out_chars.push(SPECIAL_ELEMENT_STARTS[kind], SPECIAL_ELEMENT_ENDS[kind]) if name
+        end
       end
+      chars = !parse_char_out(out_chars).many(1)
+      next chars.join
     end
-    return value
+    return parser
   end
 
-  def parse_children_list(option = {})
-    children_list = []
-    first_char = @source.read
-    if first_char == CONTENT_START
-      loop do
-        children = []
-        if option[:verbal] || option[:instruction]
-          children = parse_verbal_nodes(option)
-        else
-          children = parse_nodes(option)
-        end
-        if option[:trim_indents]
-          trim_indents(children)
-        end
-        children_list << children
-        unless @source.read == CONTENT_END
-          raise ZenithalParseError.new(@source)
-        end
-        space_count = skip_spaces
-        unless @source.read == CONTENT_START
-          @source.unread(space_count + 1)
-          break
+  def parse_line_comment
+    parser = Parser.build(self) do
+      !parse_char(COMMENT_DELIMITER)
+      !parse_char(COMMENT_DELIMITER)
+      content = !parse_line_comment_content
+      next Comment.new(" " + content.strip + " ")
+    end
+    return parser
+  end
+
+  def parse_line_comment_content
+    parser = Parser.build(self) do
+      chars = !parse_char_out(["\n"]).many
+      !parse_char("\n")
+      next chars.join
+    end
+    return parser
+  end
+
+  def parse_block_comment
+    parser = Parser.build(self) do
+      !parse_char(COMMENT_DELIMITER)
+      !parse_char(CONTENT_START)
+      content = !parse_block_comment_content
+      !parse_char(CONTENT_END)
+      !parse_char(COMMENT_DELIMITER)
+      next Comment.new(" " + content.strip + " ")
+    end
+    return parser
+  end
+
+  def parse_block_comment_content
+    parser = Parser.build(self) do
+      chars = !parse_char_out([CONTENT_END]).many
+      next chars.join
+    end
+    return parser
+  end
+
+  def parse_escape
+    parser = Parser.build(self) do
+      !parse_char(ESCAPE_START)
+      char = !parse_char_any(ESCAPE_CHARS)
+      next char
+    end
+    return parser
+  end
+
+  def parse_identifier
+    parser = Parser.build(self) do
+      first_char = !parse_first_identifier_char
+      rest_chars = !parse_middle_identifier_char.many
+      identifier = first_char + rest_chars.join
+      next identifier
+    end
+    return parser
+  end
+
+  def parse_first_identifier_char
+    return parse_char_any(VALID_FIRST_IDENTIFIER_CHARS)
+  end
+
+  def parse_middle_identifier_char
+    return parse_char_any(VALID_MIDDLE_IDENTIFIER_CHARS)
+  end
+
+  def parse_space
+    return parse_char_any(SPACE_CHARS).many
+  end
+
+  def create_nodes(name, marks, attributes, children_list)
+    nodes = Nodes[]
+    unless marks.include?(:macro)
+      if marks.include?(:trim)
+        children_list.each do |children|
+          ZenithalParser.trim_indents(children)
         end
       end
-    elsif first_char == CONTENT_END
-      children_list << []
-    else
-      raise ZenithalParseError.new(@source)
-    end
-    return children_list
-  end
-
-  def create_nodes(name, attributes, children_list, option = {})
-    nodes = []
-    unless option[:macro]
-      if option[:instruction]
+      if marks.include?(:instruction)
         unless children_list.size <= 1
-          raise ZenithalParseError.new(@source)
+          throw(:error, error_message("Processing instruction cannot have more than one argument"))
         end
         nodes = create_instructions(name, attributes, children_list.first)
-        if name == SYSTEM_INSTRUCTION_NAME
-          skip_spaces
-        end
       else
-        unless option[:multiple] || children_list.size <= 1
-          raise ZenithalParseError.new(@source)
+        unless marks.include?(:multiple) || children_list.size <= 1
+          throw(:error, error_message("Normal node cannot have more than one argument"))
         end
         nodes = create_elements(name, attributes, children_list)
       end
@@ -284,28 +332,13 @@ class ZenithalParser
     return nodes
   end
 
-  def create_elements(name, attributes, children_list)
-    elements = []
-    children_list.each do |children|
-      element = Element.new(name)
-      attributes.each do |key, value|
-        element.add_attribute(key, value)
-      end
-      children.each do |child|
-        element.add(child)
-      end
-      elements << element
-    end
-    return elements
-  end
-
   def create_instructions(target, attributes, children)
-    instructions = []
+    instructions = Nodes[]
     if target == SYSTEM_INSTRUCTION_NAME
       @version = attributes["version"] if attributes["version"]
-      @brace_name = attributes["brace"] if attributes["brace"]
-      @bracket_name = attributes["bracket"] if attributes["bracket"]
-      @slash_name = attributes["slash"] if attributes["slash"]
+      @special_element_names[:brace] = attributes["brace"] if attributes["brace"]
+      @special_element_names[:bracket] = attributes["bracket"] if attributes["bracket"]
+      @special_element_names[:slash] = attributes["slash"] if attributes["slash"]
     elsif target == "xml"
       instruction = XMLDecl.new
       instruction.version = attributes["version"] || XMLDecl::DEFAULT_VERSION
@@ -327,15 +360,27 @@ class ZenithalParser
     return instructions
   end
 
+  def create_elements(name, attributes, children_list)
+    elements = Nodes[]
+    children_list.each do |children|
+      element = Element.new(name)
+      attributes.each do |key, value|
+        element.add_attribute(key, value)
+      end
+      children.each do |child|
+        element.add(child)
+      end
+      elements << element
+    end
+    return elements
+  end
+
   def process_macro(name, attributes, children_list)
-    elements = []
+    elements = Nodes[]
     if @macros.key?(name)
-      elements = @macros[name].call(attributes, children_list)
-    elsif ENTITIES.key?(name)
-      text = Text.new(ENTITIES[name], true, nil, false)
-      elements << text      
+      elements = @macros[name].call(attributes, children_list)    
     else
-      raise ZenithalParseError.new(@source)
+      throw(:error, error_message("No such macro"))
     end
     return elements
   end
@@ -344,162 +389,7 @@ class ZenithalParser
     @macros.store(name, block)
   end
 
-  def parse_brace
-    unless @source.read == BRACE_START
-      raise ZenithalParseError.new(@source)
-    end
-    children = parse_nodes
-    unless @source.read == BRACE_END
-      raise ZenithalParseError.new(@source)
-    end
-    element = Element.new(@brace_name)
-    children.each do |child|
-      element.add(child)
-    end
-    return element
-  end
-
-  def parse_bracket
-    unless @source.read == BRACKET_START
-      raise ZenithalParseError.new(@source)
-    end
-    children = parse_nodes
-    unless @source.read == BRACKET_END
-      raise ZenithalParseError.new(@source)
-    end
-    element = Element.new(@bracket_name)
-    children.each do |child|
-      element.add(child)
-    end
-    return element
-  end
-
-  def parse_slash
-    unless @source.read == SLASH_START
-      raise ZenithalParseError.new(@source)
-    end
-    children = parse_nodes({}, true)
-    unless @source.read == SLASH_END
-      raise ZenithalParseError.new(@source)
-    end
-    element = Element.new(@slash_name)
-    children.each do |child|
-      element.add(child)
-    end
-    return element
-  end
-
-  def parse_comment
-    unless @source.read == COMMENT_DELIMITER
-      raise ZenithalParseError.new(@source)
-    end
-    char = @source.read
-    string = ""
-    if char == COMMENT_DELIMITER
-      while char = @source.read
-        if char == "\n"
-          @source.unread
-          break
-        else
-          string << char
-        end
-      end
-    elsif char == CONTENT_START
-      while char = @source.read
-        if char == CONTENT_END
-          next_char = @source.read
-          if next_char == COMMENT_DELIMITER
-            break
-          else
-            string << char
-            @source.unread
-          end
-        else
-          string << char
-        end
-      end
-    else
-      raise ZenithalParseError.new(@source)
-    end
-    comment = Comment.new(" #{string.strip} ")
-    return comment
-  end
-
-  def parse_text(option = {})
-    string = ""
-    while char = @source.read
-      next_char = @source.peek
-      if char == TAG_START || char == MACRO_START
-        @source.unread
-        break
-      elsif (@brace_name && char == BRACE_START) || (@bracket_name && char == BRACKET_START) || (@slash_name && char == SLASH_START)
-        @source.unread
-        break 
-      elsif char == CONTENT_END
-        @source.unread
-        break
-      elsif (@brace_name && char == BRACE_END) || (@bracket_name && char == BRACKET_END) || (@slash_name && char == SLASH_END)
-        @source.unread
-        break
-      elsif char == COMMENT_DELIMITER
-        @source.unread
-        break
-      elsif char == ESCAPE_START && ESCAPES.include?(next_char)
-        @source.unread
-        string << parse_escape_string
-      else
-        string << char
-      end
-    end
-    text = Text.new(string, true, nil, false)
-    return text
-  end
-
-  def parse_verbal_text(option = {})
-    string = ""
-    while char = @source.read
-      next_char = @source.peek
-      if char == CONTENT_END
-        @source.unread
-        break
-      elsif char == ESCAPE_START && ESCAPES.include?(next_char)
-        @source.unread
-        string << parse_escape_string
-      else
-        string << char
-      end
-    end
-    text = Text.new(string, true, nil, false)
-    return text
-  end
-
-  def parse_escape_string
-    unless @source.read == ESCAPE_START
-      raise ZenithalParseError.new(@source)
-    end
-    char = @source.read
-    return char
-  end
-
-  def skip_spaces
-    count = 0
-    while @source.read =~ /\s/
-      count += 1
-    end
-    @source.unread
-    return count
-  end
-
-  def trim_spaces(children)
-    if children.first.is_a?(Text)
-      children.first.value = children.first.value.lstrip
-    end
-    if children.last.is_a?(Text)
-      children.last.value = children.last.value.rstrip
-    end
-  end
-
-  def trim_indents(children)
+  def self.trim_indents(children)
     texts = []
     if children.last.is_a?(Text)
       children.last.value = children.last.value.rstrip
@@ -508,11 +398,11 @@ class ZenithalParser
       case child
       when Text
         texts << child
-      when Parent
-        texts.concat(ZenithalParser.get_all_texts(child))
+      when Element
+        texts.concat(child.get_texts_recursive)
       end
     end
-    indent_length = 10000
+    indent_length = Float::INFINITY
     texts.each do |text|
       text.value.scan(/\n(\x20+)/) do |match|
         indent_length = [match[0].length, indent_length].min
@@ -526,25 +416,20 @@ class ZenithalParser
     end
   end
 
-  def self.valid_start_char?(char)
-    return VALID_START_CHARS.any?{|s| s === char.ord}
+  def brace_name=(name)
+    @special_element_names[:brace] = name
   end
 
-  def self.valid_char?(char)
-    return VALID_START_CHARS.any?{|s| s === char.ord} || VALID_MIDDLE_CHARS.any?{|s| s === char.ord}
+  def bracket_name=(name)
+    @special_element_names[:bracket] = name
   end
 
-  def self.get_all_texts
-    texts = []
-    self.children.each do |child|
-      case child
-      when Text
-        texts << child
-      when Parent
-        texts.concat(get_all_texts(child))
-      end
-    end
-    return texts
+  def slash_name=(name)
+    @special_element_names[:slash] = name
+  end
+
+  def error_message(message)
+    return "[line #{@source.lineno}] #{message}"
   end
 
 end
