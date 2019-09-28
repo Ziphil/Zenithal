@@ -83,7 +83,7 @@ class ZenithalNewParser
 
   def parse_nodes(verbal)
     parser = Parser.exec(self) do
-      parsers = [parse_element, parse_text(verbal), parse_line_comment]
+      parsers = [parse_element, parse_text(verbal), parse_line_comment, parse_block_comment]
       @special_element_names.each do |kind, name|
         parsers.push(parse_special_element(kind))
       end
@@ -251,6 +251,26 @@ class ZenithalNewParser
     parser = Parser.exec(self) do
       chars = !parse_char_out(["\n"]).many
       !parse_char("\n")
+      next chars.join
+    end
+    return parser
+  end
+
+  def parse_block_comment
+    parser = Parser.exec(self) do
+      !parse_char(COMMENT_DELIMITER)
+      !parse_char(CONTENT_START)
+      content = !parse_block_comment_content
+      !parse_char(CONTENT_END)
+      !parse_char(COMMENT_DELIMITER)
+      next Comment.new(" " + content.strip + " ")
+    end
+    return parser
+  end
+
+  def parse_block_comment_content
+    parser = Parser.exec(self) do
+      chars = !parse_char_out([CONTENT_END]).many
       next chars.join
     end
     return parser
