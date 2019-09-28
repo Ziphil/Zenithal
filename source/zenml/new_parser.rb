@@ -48,9 +48,6 @@ class ZenithalNewParser
   ]
 
   attr_reader :source
-  attr_writer :brace_name
-  attr_writer :bracket_name
-  attr_writer :slash_name
 
   def initialize(source)
     @source = StringReader.new(source)
@@ -382,6 +379,18 @@ class ZenithalNewParser
 
   def register_macro(name, &block)
     @macros.store(name, block)
+  end
+
+  def brace_name=(name)
+    @special_element_names[:brace] = name
+  end
+
+  def bracket_name=(name)
+    @special_element_names[:bracket] = name
+  end
+
+  def slash_name=(name)
+    @special_element_names[:slash] = name
   end
 
   def error_message(message)
