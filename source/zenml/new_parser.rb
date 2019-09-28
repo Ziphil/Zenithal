@@ -22,12 +22,8 @@ class ZenithalNewParser
   ATTRIBUTE_SEPARATOR = ","
   CONTENT_START = "<"
   CONTENT_END = ">"
-  BRACE_START = "{"
-  BRACE_END = "}"
-  BRACKET_START = "["
-  BRACKET_END = "]"
-  SLASH_START = "/"
-  SLASH_END = "/"
+  SPECIAL_ELEMENT_STARTS = {:brace => "{", :bracket => "[", :slash => "/"}
+  SPECIAL_ELEMENT_ENDS = {:brace => "}", :bracket => "]", :slash => "/"}
   COMMENT_DELIMITER = "#"
   SYSTEM_INSTRUCTION_NAME = "zml"
   MARKS = {:instruction => "?", :trim => "*", :verbal => "~", :multiple => "+"}
@@ -59,9 +55,7 @@ class ZenithalNewParser
   def initialize(source)
     @source = StringReader.new(source)
     @version = nil
-    @brace_name = nil
-    @bracket_name = nil
-    @slash_name = nil
+    @special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
     @macros = {}
   end
 
@@ -89,8 +83,12 @@ class ZenithalNewParser
 
   def parse_nodes(verbal)
     parser = Parser.exec(self) do
+      parsers = [parse_element, parse_text(verbal)]
+      @special_element_names.each do |kind, name|
+        parsers.push(parse_special_element(kind))
+      end
       nodes = Nodes[]
-      raw_nodes = !(parse_element | parse_text(verbal)).many
+      raw_nodes = !parsers.inject(:|).many
       raw_nodes.each do |raw_node|
         nodes << raw_node
       end
@@ -113,6 +111,19 @@ class ZenithalNewParser
         marks.push(:macro)
       end
       next create_nodes(name, marks, attributes, children_list)
+    end
+    return parser
+  end
+
+  def parse_special_element(kind)
+    parser = Parser.exec(self) do
+      unless @special_element_names[kind]
+        !parse_none
+      end
+      !parse_char(SPECIAL_ELEMENT_STARTS[kind])
+      children = !parse_nodes(false)
+      !parse_char(SPECIAL_ELEMENT_ENDS[kind])
+      next create_nodes(@special_element_names[kind], [], {}, [children])
     end
     return parser
   end
@@ -216,9 +227,9 @@ class ZenithalNewParser
       out_chars = [ESCAPE_START, CONTENT_END]
       unless verbal
         out_chars.push(TAG_START, MACRO_START, CONTENT_START)
-        out_chars.push(BRACE_START) if @brace_name
-        out_chars.push(BRACKET_START) if @bracket_name
-        out_chars.push(SLASH_START) if @slash_name
+        @special_element_names.each do |kind, name|
+          out_chars.push(SPECIAL_ELEMENT_STARTS[kind], SPECIAL_ELEMENT_ENDS[kind]) if name
+        end
       end
       chars = !parse_char_out(out_chars).many(1)
       next chars.join
@@ -281,9 +292,9 @@ class ZenithalNewParser
     instructions = Nodes[]
     if target == SYSTEM_INSTRUCTION_NAME
       @version = attributes["version"] if attributes["version"]
-      @brace_name = attributes["brace"] if attributes["brace"]
-      @bracket_name = attributes["bracket"] if attributes["bracket"]
-      @slash_name = attributes["slash"] if attributes["slash"]
+      @special_element_names[:brace] = attributes["brace"] if attributes["brace"]
+      @special_element_names[:bracket] = attributes["bracket"] if attributes["bracket"]
+      @special_element_names[:slash] = attributes["slash"] if attributes["slash"]
     elsif target == "xml"
       instruction = XMLDecl.new
       instruction.version = attributes["version"] || XMLDecl::DEFAULT_VERSION

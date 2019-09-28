@@ -170,6 +170,13 @@ module ParserBuilder
     return parser
   end
 
+  def parse_none
+    parser = Parser.build(self) do
+      next Result.error(error_message("This cannot happen"))
+    end
+    return parser
+  end
+
 end
 
 
