@@ -6,7 +6,7 @@
 Zenithal Markup Language (“ZML”, or “ZenML” for discernability) serves an alternative syntax for XML.
 It is almost fully compatible with XML, and less redundant and more readable than XML.
 
-This repository provides a script for converting ZenML to XML.
+This repository provides a script for converting ZenML to XML, together with the utility classes which help to transform XML documents.
 
 ## Installation
 Install from RubyGems.
@@ -15,6 +15,8 @@ gem install zenml
 ```
 
 ## Syntax
+
+Note that the version of the syntax itself is independent of that of the processor.
 
 - [Version 1.0](document/1.0.md)
 
