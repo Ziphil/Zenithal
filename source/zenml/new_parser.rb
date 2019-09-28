@@ -11,7 +11,7 @@ class ZenithalNewParser
 
   include ParserBuilder
 
-  TAG_START = "\\"
+  ELEMENT_START = "\\"
   MACRO_START = "&"
   ESCAPE_START = "`"
   ATTRIBUTE_START = "|"
@@ -99,7 +99,7 @@ class ZenithalNewParser
 
   def parse_element
     parser = Parser.exec(self) do
-      start_char = !parse_char_any([TAG_START, MACRO_START])
+      start_char = !parse_char_any([ELEMENT_START, MACRO_START])
       name = !parse_identifier
       marks = !parse_marks
       attributes = !parse_attributes.maybe || {}
@@ -226,7 +226,7 @@ class ZenithalNewParser
     parser = Parser.exec(self) do
       out_chars = [ESCAPE_START, CONTENT_END]
       unless verbal
-        out_chars.push(TAG_START, MACRO_START, CONTENT_START, COMMENT_DELIMITER)
+        out_chars.push(ELEMENT_START, MACRO_START, CONTENT_START, COMMENT_DELIMITER)
         @special_element_names.each do |kind, name|
           out_chars.push(SPECIAL_ELEMENT_STARTS[kind], SPECIAL_ELEMENT_ENDS[kind]) if name
         end
