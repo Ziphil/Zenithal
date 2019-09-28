@@ -110,25 +110,29 @@ module CommonParser
   def parse_char(query)
     parser = Parser.new(self) do
       char = source.read
-      predicate, message = false, nil
-      case query
-      when String
-        predicate = query == char
-        message = "Expected '#{query}'"
-      when Regexp
-        predicate = query =~ char
-        message = "Expected /#{query}/"
-      when Integer
-        predicate = query == char&.ord
-        message = "Expected '#{query.chr}'"
-      when Range
-        predicate = query.cover?(char&.ord)
-        message = "Expected '#{query.begin}'..'#{query.end}'"
-      end
-      if predicate
-        next Result.success(char)
+      unless char == nil
+        predicate, message = false, nil
+        case query
+        when String
+          predicate = query == char
+          message = "Expected '#{query}'"
+        when Regexp
+          predicate = query =~ char
+          message = "Expected /#{query}/"
+        when Integer
+          predicate = query == char.ord
+          message = "Expected '#{query.chr}'"
+        when Range
+          predicate = query.cover?(char.ord)
+          message = "Expected '#{query.begin}'..'#{query.end}'"
+        end
+        if predicate
+          next Result.success(char)
+        else
+          next Result.error(error_message(message))
+        end
       else
-        next Result.error(error_message(message))
+        next Result.error(error_message("Unexpected end of file"))
       end
     end
     return parser
