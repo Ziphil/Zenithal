@@ -383,7 +383,10 @@ class ZenithalParser
   def process_macro(name, attributes, children_list)
     elements = Nodes[]
     if @macros.key?(name)
-      elements = @macros[name].call(attributes, children_list)    
+      raw_elements = @macros[name].call(attributes, children_list)
+      raw_elements.each do |raw_element|
+        elements << raw_element
+      end
     else
       throw(:error, error_message("No such macro"))
     end
