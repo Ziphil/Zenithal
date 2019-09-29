@@ -29,7 +29,7 @@ class Parser
     return @builder.instance_eval(&@method)
   end
 
-  def !
+  def exec_get
     result = self.exec
     if result.success?
       return result.value
@@ -37,6 +37,9 @@ class Parser
       throw(:error, result.message)
     end
   end
+
+  alias -@ exec
+  alias +@ exec_get
 
   def |(other)
     this = self

@@ -49,8 +49,8 @@ module ZenithalParserMethod
   def parse_document
     parser = Parser.build(self) do
       document = Document.new
-      children = !parse_nodes(false)
-      !parse_eof
+      children = +parse_nodes(false)
+      +parse_eof
       children.each do |child|
         document.add(child)
       end
@@ -69,7 +69,7 @@ module ZenithalParserMethod
         end
       end
       nodes = Nodes[]
-      raw_nodes = !parsers.inject(:|).many
+      raw_nodes = +parsers.inject(:|).many
       raw_nodes.each do |raw_node|
         nodes << raw_node
       end
@@ -80,13 +80,13 @@ module ZenithalParserMethod
 
   def parse_element
     parser = Parser.build(self) do
-      start_char = !parse_char_any([ELEMENT_START, MACRO_START])
-      name = !parse_identifier
-      marks = !parse_marks
-      attributes = !parse_attributes.maybe || {}
-      children_list = !parse_children_list(marks.include?(:verbal))
+      start_char = +parse_char_any([ELEMENT_START, MACRO_START])
+      name = +parse_identifier
+      marks = +parse_marks
+      attributes = +parse_attributes.maybe || {}
+      children_list = +parse_children_list(marks.include?(:verbal))
       if name == SYSTEM_INSTRUCTION_NAME
-        !parse_space
+        +parse_space
       end
       if start_char == MACRO_START
         marks.push(:macro)
@@ -99,11 +99,11 @@ module ZenithalParserMethod
   def parse_special_element(kind)
     parser = Parser.build(self) do
       unless @special_element_names[kind]
-        !parse_none
+        +parse_none
       end
-      !parse_char(SPECIAL_ELEMENT_STARTS[kind])
-      children = !parse_nodes(false)
-      !parse_char(SPECIAL_ELEMENT_ENDS[kind])
+      +parse_char(SPECIAL_ELEMENT_STARTS[kind])
+      children = +parse_nodes(false)
+      +parse_char(SPECIAL_ELEMENT_ENDS[kind])
       next create_nodes(@special_element_names[kind], [], {}, [children])
     end
     return parser
@@ -122,11 +122,11 @@ module ZenithalParserMethod
 
   def parse_attributes
     parser = Parser.build(self) do
-      !parse_char(ATTRIBUTE_START)
-      first_attribute = !parse_attribute(false)
-      rest_attribtues = !parse_attribute(true).many
+      +parse_char(ATTRIBUTE_START)
+      first_attribute = +parse_attribute(false)
+      rest_attribtues = +parse_attribute(true).many
       attributes = first_attribute.merge(*rest_attribtues)
-      !parse_char(ATTRIBUTE_END)
+      +parse_char(ATTRIBUTE_END)
       next attributes
     end
     return parser
@@ -134,12 +134,12 @@ module ZenithalParserMethod
 
   def parse_attribute(comma)
     parser = Parser.build(self) do
-      !parse_char(ATTRIBUTE_SEPARATOR) if comma
-      !parse_space
-      name = !parse_identifier
-      !parse_space
-      value = !parse_attribute_value.maybe || name
-      !parse_space
+      +parse_char(ATTRIBUTE_SEPARATOR) if comma
+      +parse_space
+      name = +parse_identifier
+      +parse_space
+      value = +parse_attribute_value.maybe || name
+      +parse_space
       next {name => value}
     end
     return parser
@@ -147,9 +147,9 @@ module ZenithalParserMethod
 
   def parse_attribute_value
     parser = Parser.build(self) do
-      !parse_char(ATTRIBUTE_EQUAL)
-      !parse_space
-      value = !parse_quoted_string
+      +parse_char(ATTRIBUTE_EQUAL)
+      +parse_space
+      value = +parse_quoted_string
       next value
     end
     return parser
@@ -157,9 +157,9 @@ module ZenithalParserMethod
 
   def parse_quoted_string
     parser = Parser.build(self) do
-      !parse_char(ATTRIBUTE_VALUE_START)
-      texts = !(parse_quoted_string_plain | parse_escape).many
-      !parse_char(ATTRIBUTE_VALUE_END)
+      +parse_char(ATTRIBUTE_VALUE_START)
+      texts = +(parse_quoted_string_plain | parse_escape).many
+      +parse_char(ATTRIBUTE_VALUE_END)
       next texts.join
     end
     return parser
@@ -167,7 +167,7 @@ module ZenithalParserMethod
 
   def parse_quoted_string_plain
     parser = Parser.build(self) do
-      chars = !parse_char_out([ATTRIBUTE_VALUE_END, ESCAPE_START]).many(1)
+      chars = +parse_char_out([ATTRIBUTE_VALUE_END, ESCAPE_START]).many(1)
       next chars.join
     end
     return parser
@@ -175,8 +175,8 @@ module ZenithalParserMethod
 
   def parse_children_list(verbal)
     parser = Parser.build(self) do
-      first_children = !(parse_empty_children | parse_children(verbal))
-      rest_children_list = !parse_children(verbal).many
+      first_children = +(parse_empty_children | parse_children(verbal))
+      rest_children_list = +parse_children(verbal).many
       children_list = [first_children] + rest_children_list
       next children_list
     end
@@ -185,9 +185,9 @@ module ZenithalParserMethod
 
   def parse_children(verbal)
     parser = Parser.build(self) do
-      !parse_char(CONTENT_START)
-      children = !parse_nodes(verbal)
-      !parse_char(CONTENT_END)
+      +parse_char(CONTENT_START)
+      children = +parse_nodes(verbal)
+      +parse_char(CONTENT_END)
       next children
     end
     return parser
@@ -195,7 +195,7 @@ module ZenithalParserMethod
 
   def parse_empty_children
     parser = Parser.build(self) do
-      !parse_char(CONTENT_END)
+      +parse_char(CONTENT_END)
       next Nodes[]
     end
     return parser
@@ -203,7 +203,7 @@ module ZenithalParserMethod
 
   def parse_text(verbal)
     parser = Parser.build(self) do
-      texts = !(parse_text_plain(verbal) | parse_escape).many(1)
+      texts = +(parse_text_plain(verbal) | parse_escape).many(1)
       next Text.new(texts.join, true, nil, false)
     end
     return parser
@@ -218,7 +218,7 @@ module ZenithalParserMethod
           out_chars.push(SPECIAL_ELEMENT_STARTS[kind], SPECIAL_ELEMENT_ENDS[kind]) if name
         end
       end
-      chars = !parse_char_out(out_chars).many(1)
+      chars = +parse_char_out(out_chars).many(1)
       next chars.join
     end
     return parser
@@ -226,9 +226,9 @@ module ZenithalParserMethod
 
   def parse_line_comment
     parser = Parser.build(self) do
-      !parse_char(COMMENT_DELIMITER)
-      !parse_char(COMMENT_DELIMITER)
-      content = !parse_line_comment_content
+      +parse_char(COMMENT_DELIMITER)
+      +parse_char(COMMENT_DELIMITER)
+      content = +parse_line_comment_content
       next Comment.new(" " + content.strip + " ")
     end
     return parser
@@ -236,8 +236,8 @@ module ZenithalParserMethod
 
   def parse_line_comment_content
     parser = Parser.build(self) do
-      chars = !parse_char_out(["\n"]).many
-      !parse_char("\n")
+      chars = +parse_char_out(["\n"]).many
+      +parse_char("\n")
       next chars.join
     end
     return parser
@@ -245,11 +245,11 @@ module ZenithalParserMethod
 
   def parse_block_comment
     parser = Parser.build(self) do
-      !parse_char(COMMENT_DELIMITER)
-      !parse_char(CONTENT_START)
-      content = !parse_block_comment_content
-      !parse_char(CONTENT_END)
-      !parse_char(COMMENT_DELIMITER)
+      +parse_char(COMMENT_DELIMITER)
+      +parse_char(CONTENT_START)
+      content = +parse_block_comment_content
+      +parse_char(CONTENT_END)
+      +parse_char(COMMENT_DELIMITER)
       next Comment.new(" " + content.strip + " ")
     end
     return parser
@@ -257,7 +257,7 @@ module ZenithalParserMethod
 
   def parse_block_comment_content
     parser = Parser.build(self) do
-      chars = !parse_char_out([CONTENT_END]).many
+      chars = +parse_char_out([CONTENT_END]).many
       next chars.join
     end
     return parser
@@ -265,8 +265,8 @@ module ZenithalParserMethod
 
   def parse_escape
     parser = Parser.build(self) do
-      !parse_char(ESCAPE_START)
-      char = !parse_char_any(ESCAPE_CHARS)
+      +parse_char(ESCAPE_START)
+      char = +parse_char_any(ESCAPE_CHARS)
       next char
     end
     return parser
@@ -274,8 +274,8 @@ module ZenithalParserMethod
 
   def parse_identifier
     parser = Parser.build(self) do
-      first_char = !parse_first_identifier_char
-      rest_chars = !parse_middle_identifier_char.many
+      first_char = +parse_first_identifier_char
+      rest_chars = +parse_middle_identifier_char.many
       identifier = first_char + rest_chars.join
       next identifier
     end
