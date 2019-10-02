@@ -6,7 +6,7 @@ require 'zenml/utility'
 
 module Zenithal
 
-  VERSION = "1.1.1"
+  VERSION = "1.1.2"
 
   require 'zenml/error'
   require 'zenml/reader'
