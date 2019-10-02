@@ -84,7 +84,7 @@ module ZenithalParserMethod
       name = +parse_identifier(options)
       marks = +parse_marks(options)
       attributes = +parse_attributes(options).maybe || {}
-      next_options = determine_options(name, marks, attributes, start_char == MACRO_START, options.clone)
+      next_options = determine_options(name, marks, attributes, start_char == MACRO_START, options)
       children_list = +parse_children_list(next_options)
       if name == SYSTEM_INSTRUCTION_NAME
         +parse_space
@@ -100,6 +100,7 @@ module ZenithalParserMethod
 
   def determine_options(name, marks, attributes, macro, options)
     if marks.include?(:verbal)
+      options = options.clone
       options[:verbal] = true
     end
     return options
