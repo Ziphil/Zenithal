@@ -89,18 +89,10 @@ module ZenithalParserMethod
       if start_char == MACRO_START
         next process_macro(name, marks, attributes, children_list, options)
       else
-        next create_nodes(name, marks, attributes, children_list, options)
+        next create_element(name, marks, attributes, children_list, options)
       end
     end
     return parser
-  end
-
-  def determine_options(name, marks, attributes, macro, options)
-    if marks.include?(:verbal)
-      options = options.clone
-      options[:verbal] = true
-    end
-    return options
   end
 
   def parse_special_element(kind, options)
@@ -111,7 +103,7 @@ module ZenithalParserMethod
       +parse_char(SPECIAL_ELEMENT_STARTS[kind])
       children = +parse_nodes(options)
       +parse_char(SPECIAL_ELEMENT_ENDS[kind])
-      next create_nodes(@special_element_names[kind], [], {}, [children], options)
+      next create_special_element(kind, children, options)
     end
     return parser
   end
@@ -165,7 +157,7 @@ module ZenithalParserMethod
   def parse_string(options)
     parser = Parser.build(self) do
       +parse_char(STRING_START)
-      strings = +(parse_string_plain(options) | parse_escape(options)).many
+      strings = +(parse_string_plain(options) | parse_escape(:string, options)).many
       +parse_char(STRING_END)
       next strings.join
     end
@@ -210,8 +202,8 @@ module ZenithalParserMethod
 
   def parse_text(options)
     parser = Parser.build(self) do
-      raw_texts = +(parse_text_plain(options) | parse_escape(options)).many(1)
-      next create_texts(raw_texts.join, options)
+      raw_texts = +(parse_text_plain(options) | parse_escape(:text, options)).many(1)
+      next create_text(raw_texts.join, options)
     end
     return parser
   end
@@ -237,7 +229,7 @@ module ZenithalParserMethod
       +parse_char(COMMENT_DELIMITER)
       content = +parse_line_comment_content(options)
       +parse_char("\n")
-      next create_comments(:line, content, options)
+      next create_comment(:line, content, options)
     end
     return parser
   end
@@ -257,7 +249,7 @@ module ZenithalParserMethod
       content = +parse_block_comment_content(options)
       +parse_char(CONTENT_END)
       +parse_char(COMMENT_DELIMITER)
-      next create_comments(:block, content, options)
+      next create_comment(:block, content, options)
     end
     return parser
   end
@@ -270,11 +262,11 @@ module ZenithalParserMethod
     return parser
   end
 
-  def parse_escape(options)
+  def parse_escape(place, options)
     parser = Parser.build(self) do
       +parse_char(ESCAPE_START)
-      char = +parse_char_any(ESCAPE_CHARS)
-      next char
+      char = +parse_char
+      next create_escape(place, char, options)
     end
     return parser
   end
@@ -301,7 +293,17 @@ module ZenithalParserMethod
     return parse_char_any(SPACE_CHARS).many
   end
 
-  def create_nodes(name, marks, attributes, children_list, options)
+  # Determines options which are used when parsing the children nodes.
+  # This method may be overrided in order to change the parsing behaviour for another format based on ZenML.
+  def determine_options(name, marks, attributes, macro, options)
+    if marks.include?(:verbal)
+      options = options.clone
+      options[:verbal] = true
+    end
+    return options
+  end
+
+  def create_element(name, marks, attributes, children_list, options)
     nodes = Nodes[]
     if marks.include?(:trim)
       children_list.each do |children|
@@ -312,18 +314,18 @@ module ZenithalParserMethod
       unless children_list.size <= 1
         throw(:error, error_message("Processing instruction cannot have more than one argument"))
       end
-      nodes = create_instructions(name, attributes, children_list.first, options)
+      nodes = create_instruction(name, attributes, children_list.first, options)
     else
       unless marks.include?(:multiple) || children_list.size <= 1
         throw(:error, error_message("Normal node cannot have more than one argument"))
       end
-      nodes = create_elements(name, attributes, children_list, options)
+      nodes = create_normal_element(name, attributes, children_list, options)
     end
     return nodes
   end
 
-  def create_instructions(target, attributes, children, options)
-    instructions = Nodes[]
+  def create_instruction(target, attributes, children, options)
+    nodes = Nodes[]
     if target == SYSTEM_INSTRUCTION_NAME
       @version = attributes["version"] if attributes["version"]
       @special_element_names[:brace] = attributes["brace"] if attributes["brace"]
@@ -334,7 +336,7 @@ module ZenithalParserMethod
       instruction.version = attributes["version"] || XMLDecl::DEFAULT_VERSION
       instruction.encoding = attributes["encoding"]
       instruction.standalone = attributes["standalone"]
-      instructions << instruction
+      nodes << instruction
     else
       instruction = Instruction.new(target)
       actual_contents = []
@@ -345,13 +347,13 @@ module ZenithalParserMethod
         actual_contents << children.first
       end
       instruction.content = actual_contents.join(" ")
-      instructions << instruction
+      nodes << instruction
     end
-    return instructions
+    return nodes
   end
 
-  def create_elements(name, attributes, children_list, options)
-    elements = Nodes[]
+  def create_normal_element(name, attributes, children_list, options)
+    nodes = Nodes[]
     children_list.each do |children|
       element = Element.new(name)
       attributes.each do |key, value|
@@ -360,21 +362,30 @@ module ZenithalParserMethod
       children.each do |child|
         element.add(child)
       end
-      elements << element
+      nodes << element
     end
-    return elements
+    return nodes
   end
 
-  def create_texts(raw_text, options)
-    texts = Nodes[]
-    texts << Text.new(raw_text, true, nil, false)
-    return texts
+  def create_special_element(kind, children, options)
+    name = @special_element_names[kind]
+    nodes = create_element(name, [], {}, [children], options)
+    return nodes
   end
 
-  def create_comments(kind, content, options)
-    comments = Nodes[]
-    comments << Comment.new(" " + content.strip + " ")
-    return comments
+  def create_text(raw_text, options)
+    return Text.new(raw_text, true, nil, false)
+  end
+
+  def create_comment(kind, content, options)
+    return Comment.new(" " + content.strip + " ")
+  end
+
+  def create_escape(place, char, options)
+    unless ESCAPE_CHARS.include?(char)
+      throw(:error, "Invalid escape")
+    end
+    return char
   end
 
   def process_macro(name, marks, attributes, children_list, options)

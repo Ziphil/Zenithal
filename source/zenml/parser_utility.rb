@@ -115,7 +115,7 @@ module CommonParserMethod
   # Parses a single character which matches the specified query.
   # If the next character does not match the query or the end of file is reached, an error result is returned.
   # Otherwise, a success result with a string containing the matched chracter is returned.
-  def parse_char(query)
+  def parse_char(query = nil)
     parser = Parser.new(self) do
       char = source.read
       unless char == nil
@@ -133,6 +133,9 @@ module CommonParserMethod
         when Range
           predicate = query.cover?(char.ord)
           message = "Expected '#{query.begin}'..'#{query.end}'"
+        when NilClass
+          predicate = true
+          message = ""
         end
         if predicate
           next Result.success(char)
