@@ -212,8 +212,8 @@ module ZenithalParserMethod
 
   def parse_text(options)
     parser = Parser.build(self) do
-      texts = +(parse_text_plain(options) | parse_escape(options)).many(1)
-      next Text.new(texts.join, true, nil, false)
+      raw_texts = +(parse_text_plain(options) | parse_escape(options)).many(1)
+      next create_texts(raw_texts.join, options)
     end
     return parser
   end
@@ -239,7 +239,7 @@ module ZenithalParserMethod
       +parse_char(COMMENT_DELIMITER)
       content = +parse_line_comment_content(options)
       +parse_char("\n")
-      next Comment.new(" " + content.strip + " ")
+      next create_comments(:line, content, options)
     end
     return parser
   end
@@ -259,7 +259,7 @@ module ZenithalParserMethod
       content = +parse_block_comment_content(options)
       +parse_char(CONTENT_END)
       +parse_char(COMMENT_DELIMITER)
-      next Comment.new(" " + content.strip + " ")
+      next create_comments(:block, content, options)
     end
     return parser
   end
@@ -365,6 +365,18 @@ module ZenithalParserMethod
       elements << element
     end
     return elements
+  end
+
+  def create_texts(raw_text, options)
+    texts = Nodes[]
+    texts << Text.new(raw_text, true, nil, false)
+    return texts
+  end
+
+  def create_comments(kind, content, options)
+    comments = Nodes[]
+    comments << Comment.new(" " + content.strip + " ")
+    return comments
   end
 
   def process_macro(name, marks, attributes, children_list, options)
