@@ -49,7 +49,7 @@ module ZenithalParserMethod
   def parse_document
     parser = Parser.build(self) do
       document = Document.new
-      children = +parse_nodes(false)
+      children = +parse_nodes({})
       +parse_eof
       children.each do |child|
         document.add(child)
@@ -59,13 +59,13 @@ module ZenithalParserMethod
     return parser
   end
 
-  def parse_nodes(verbal)
+  def parse_nodes(options)
     parser = Parser.build(self) do
-      parsers = [parse_text(verbal)]
-      unless verbal
-        parsers.push(parse_element, parse_line_comment, parse_block_comment)
+      parsers = [parse_text(options)]
+      unless options[:verbal]
+        parsers.push(parse_element(options), parse_line_comment(options), parse_block_comment(options))
         @special_element_names.each do |kind, name|
-          parsers.push(parse_special_element(kind))
+          parsers.push(parse_special_element(kind, options))
         end
       end
       nodes = Nodes[]
@@ -78,53 +78,63 @@ module ZenithalParserMethod
     return parser
   end
 
-  def parse_element
+  def parse_element(options)
     parser = Parser.build(self) do
       start_char = +parse_char_any([ELEMENT_START, MACRO_START])
-      name = +parse_identifier
-      marks = +parse_marks
-      attributes = +parse_attributes.maybe || {}
-      children_list = +parse_children_list(marks.include?(:verbal))
+      name = +parse_identifier(options)
+      marks = +parse_marks(options)
+      attributes = +parse_attributes(options).maybe || {}
+      next_options = determine_options(name, marks, attributes, options)
+      children_list = +parse_children_list(next_options)
       if name == SYSTEM_INSTRUCTION_NAME
         +parse_space
       end
       if start_char == MACRO_START
-        marks.push(:macro)
+        next process_macro(name, marks, attributes, children_list, options)
+      else
+        next create_nodes(name, marks, attributes, children_list, options)
       end
-      next create_nodes(name, marks, attributes, children_list)
     end
     return parser
   end
 
-  def parse_special_element(kind)
+  def determine_options(name, marks, attributes, current_options)
+    options = current_options.clone
+    if marks.include?(:verbal)
+      options[:verbal] = true
+    end
+    return options
+  end
+
+  def parse_special_element(kind, options)
     parser = Parser.build(self) do
       unless @special_element_names[kind]
         +parse_none
       end
       +parse_char(SPECIAL_ELEMENT_STARTS[kind])
-      children = +parse_nodes(false)
+      children = +parse_nodes(options)
       +parse_char(SPECIAL_ELEMENT_ENDS[kind])
-      next create_nodes(@special_element_names[kind], [], {}, [children])
+      next create_nodes(@special_element_names[kind], [], {}, [children], options)
     end
     return parser
   end
 
-  def parse_marks
-    return parse_mark.many
+  def parse_marks(options)
+    return parse_mark(options).many
   end
   
-  def parse_mark
+  def parse_mark(options)
     parsers = MARKS.map do |mark, query|
       next parse_char(query).map{|_| mark}
     end
     return parsers.inject(:|)
   end
 
-  def parse_attributes
+  def parse_attributes(options)
     parser = Parser.build(self) do
       +parse_char(ATTRIBUTE_START)
-      first_attribute = +parse_attribute(false)
-      rest_attribtues = +parse_attribute(true).many
+      first_attribute = +parse_attribute(true, options)
+      rest_attribtues = +parse_attribute(false, options).many
       attributes = first_attribute.merge(*rest_attribtues)
       +parse_char(ATTRIBUTE_END)
       next attributes
@@ -132,40 +142,40 @@ module ZenithalParserMethod
     return parser
   end
 
-  def parse_attribute(comma)
+  def parse_attribute(first, options)
     parser = Parser.build(self) do
-      +parse_char(ATTRIBUTE_SEPARATOR) if comma
+      +parse_char(ATTRIBUTE_SEPARATOR) unless first
       +parse_space
-      name = +parse_identifier
+      name = +parse_identifier(options)
       +parse_space
-      value = +parse_attribute_value.maybe || name
+      value = +parse_attribute_value(options).maybe || name
       +parse_space
       next {name => value}
     end
     return parser
   end
 
-  def parse_attribute_value
+  def parse_attribute_value(options)
     parser = Parser.build(self) do
       +parse_char(ATTRIBUTE_EQUAL)
       +parse_space
-      value = +parse_quoted_string
+      value = +parse_quoted_string(options)
       next value
     end
     return parser
   end
 
-  def parse_quoted_string
+  def parse_quoted_string(options)
     parser = Parser.build(self) do
       +parse_char(ATTRIBUTE_VALUE_START)
-      texts = +(parse_quoted_string_plain | parse_escape).many
+      texts = +(parse_quoted_string_plain(options) | parse_escape(options)).many
       +parse_char(ATTRIBUTE_VALUE_END)
       next texts.join
     end
     return parser
   end
 
-  def parse_quoted_string_plain
+  def parse_quoted_string_plain(options)
     parser = Parser.build(self) do
       chars = +parse_char_out([ATTRIBUTE_VALUE_END, ESCAPE_START]).many(1)
       next chars.join
@@ -173,27 +183,27 @@ module ZenithalParserMethod
     return parser
   end
 
-  def parse_children_list(verbal)
+  def parse_children_list(options)
     parser = Parser.build(self) do
-      first_children = +(parse_empty_children | parse_children(verbal))
-      rest_children_list = +parse_children(verbal).many
+      first_children = +(parse_empty_children(options) | parse_children(options))
+      rest_children_list = +parse_children(options).many
       children_list = [first_children] + rest_children_list
       next children_list
     end
     return parser
   end
 
-  def parse_children(verbal)
+  def parse_children(options)
     parser = Parser.build(self) do
       +parse_char(CONTENT_START)
-      children = +parse_nodes(verbal)
+      children = +parse_nodes(options)
       +parse_char(CONTENT_END)
       next children
     end
     return parser
   end
 
-  def parse_empty_children
+  def parse_empty_children(options)
     parser = Parser.build(self) do
       +parse_char(CONTENT_END)
       next Nodes[]
@@ -201,18 +211,18 @@ module ZenithalParserMethod
     return parser
   end
 
-  def parse_text(verbal)
+  def parse_text(options)
     parser = Parser.build(self) do
-      texts = +(parse_text_plain(verbal) | parse_escape).many(1)
+      texts = +(parse_text_plain(options) | parse_escape(options)).many(1)
       next Text.new(texts.join, true, nil, false)
     end
     return parser
   end
 
-  def parse_text_plain(verbal)
+  def parse_text_plain(options)
     parser = Parser.build(self) do
       out_chars = [ESCAPE_START, CONTENT_END]
-      unless verbal
+      unless options[:verbal]
         out_chars.push(ELEMENT_START, MACRO_START, CONTENT_START, COMMENT_DELIMITER)
         @special_element_names.each do |kind, name|
           out_chars.push(SPECIAL_ELEMENT_STARTS[kind], SPECIAL_ELEMENT_ENDS[kind]) if name
@@ -224,30 +234,30 @@ module ZenithalParserMethod
     return parser
   end
 
-  def parse_line_comment
+  def parse_line_comment(options)
     parser = Parser.build(self) do
       +parse_char(COMMENT_DELIMITER)
       +parse_char(COMMENT_DELIMITER)
-      content = +parse_line_comment_content
+      content = +parse_line_comment_content(options)
+      +parse_char("\n")
       next Comment.new(" " + content.strip + " ")
     end
     return parser
   end
 
-  def parse_line_comment_content
+  def parse_line_comment_content(options)
     parser = Parser.build(self) do
       chars = +parse_char_out(["\n"]).many
-      +parse_char("\n")
       next chars.join
     end
     return parser
   end
 
-  def parse_block_comment
+  def parse_block_comment(options)
     parser = Parser.build(self) do
       +parse_char(COMMENT_DELIMITER)
       +parse_char(CONTENT_START)
-      content = +parse_block_comment_content
+      content = +parse_block_comment_content(options)
       +parse_char(CONTENT_END)
       +parse_char(COMMENT_DELIMITER)
       next Comment.new(" " + content.strip + " ")
@@ -255,7 +265,7 @@ module ZenithalParserMethod
     return parser
   end
 
-  def parse_block_comment_content
+  def parse_block_comment_content(options)
     parser = Parser.build(self) do
       chars = +parse_char_out([CONTENT_END]).many
       next chars.join
@@ -263,7 +273,7 @@ module ZenithalParserMethod
     return parser
   end
 
-  def parse_escape
+  def parse_escape(options)
     parser = Parser.build(self) do
       +parse_char(ESCAPE_START)
       char = +parse_char_any(ESCAPE_CHARS)
@@ -272,21 +282,21 @@ module ZenithalParserMethod
     return parser
   end
 
-  def parse_identifier
+  def parse_identifier(options)
     parser = Parser.build(self) do
-      first_char = +parse_first_identifier_char
-      rest_chars = +parse_middle_identifier_char.many
+      first_char = +parse_first_identifier_char(options)
+      rest_chars = +parse_middle_identifier_char(options).many
       identifier = first_char + rest_chars.join
       next identifier
     end
     return parser
   end
 
-  def parse_first_identifier_char
+  def parse_first_identifier_char(options)
     return parse_char_any(VALID_FIRST_IDENTIFIER_CHARS)
   end
 
-  def parse_middle_identifier_char
+  def parse_middle_identifier_char(options)
     return parse_char_any(VALID_MIDDLE_IDENTIFIER_CHARS)
   end
 
@@ -294,32 +304,28 @@ module ZenithalParserMethod
     return parse_char_any(SPACE_CHARS).many
   end
 
-  def create_nodes(name, marks, attributes, children_list)
+  def create_nodes(name, marks, attributes, children_list, options)
     nodes = Nodes[]
-    unless marks.include?(:macro)
-      if marks.include?(:trim)
-        children_list.each do |children|
-          children.trim_indents
-        end
+    if marks.include?(:trim)
+      children_list.each do |children|
+        children.trim_indents
       end
-      if marks.include?(:instruction)
-        unless children_list.size <= 1
-          throw(:error, error_message("Processing instruction cannot have more than one argument"))
-        end
-        nodes = create_instructions(name, attributes, children_list.first)
-      else
-        unless marks.include?(:multiple) || children_list.size <= 1
-          throw(:error, error_message("Normal node cannot have more than one argument"))
-        end
-        nodes = create_elements(name, attributes, children_list)
+    end
+    if marks.include?(:instruction)
+      unless children_list.size <= 1
+        throw(:error, error_message("Processing instruction cannot have more than one argument"))
       end
+      nodes = create_instructions(name, attributes, children_list.first, options)
     else
-      nodes = process_macro(name, attributes, children_list)
+      unless marks.include?(:multiple) || children_list.size <= 1
+        throw(:error, error_message("Normal node cannot have more than one argument"))
+      end
+      nodes = create_elements(name, attributes, children_list, options)
     end
     return nodes
   end
 
-  def create_instructions(target, attributes, children)
+  def create_instructions(target, attributes, children, options)
     instructions = Nodes[]
     if target == SYSTEM_INSTRUCTION_NAME
       @version = attributes["version"] if attributes["version"]
@@ -347,7 +353,7 @@ module ZenithalParserMethod
     return instructions
   end
 
-  def create_elements(name, attributes, children_list)
+  def create_elements(name, attributes, children_list, options)
     elements = Nodes[]
     children_list.each do |children|
       element = Element.new(name)
@@ -362,7 +368,7 @@ module ZenithalParserMethod
     return elements
   end
 
-  def process_macro(name, attributes, children_list)
+  def process_macro(name, marks, attributes, children_list, options)
     elements = Nodes[]
     if @macros.key?(name)
       raw_elements = @macros[name].call(attributes, children_list)
