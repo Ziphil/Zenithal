@@ -68,11 +68,8 @@ module ZenithalParserMethod
           parsers.push(parse_special_element(kind, options))
         end
       end
-      nodes = Nodes[]
       raw_nodes = +parsers.inject(:|).many
-      raw_nodes.each do |raw_node|
-        nodes << raw_node
-      end
+      nodes = raw_nodes.inject(Nodes[], :<<)
       next nodes
     end
     return parser
