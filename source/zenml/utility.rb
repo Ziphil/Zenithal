@@ -92,6 +92,7 @@ class Nodes < Array
     else
       old_push(object)
     end
+    return self
   end
 
   def +(other)
