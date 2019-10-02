@@ -14,9 +14,9 @@ module ZenithalParserMethod
   ATTRIBUTE_START = "|"
   ATTRIBUTE_END = "|"
   ATTRIBUTE_EQUAL = "="
-  ATTRIBUTE_VALUE_START = "\""
-  ATTRIBUTE_VALUE_END = "\""
   ATTRIBUTE_SEPARATOR = ","
+  STRING_START = "\""
+  STRING_END = "\""
   CONTENT_START = "<"
   CONTENT_END = ">"
   SPECIAL_ELEMENT_STARTS = {:brace => "{", :bracket => "[", :slash => "/"}
@@ -158,25 +158,25 @@ module ZenithalParserMethod
     parser = Parser.build(self) do
       +parse_char(ATTRIBUTE_EQUAL)
       +parse_space
-      value = +parse_quoted_string(options)
+      value = +parse_string(options)
       next value
     end
     return parser
   end
 
-  def parse_quoted_string(options)
+  def parse_string(options)
     parser = Parser.build(self) do
-      +parse_char(ATTRIBUTE_VALUE_START)
-      texts = +(parse_quoted_string_plain(options) | parse_escape(options)).many
-      +parse_char(ATTRIBUTE_VALUE_END)
-      next texts.join
+      +parse_char(STRING_START)
+      strings = +(parse_string_plain(options) | parse_escape(options)).many
+      +parse_char(STRING_END)
+      next strings.join
     end
     return parser
   end
 
-  def parse_quoted_string_plain(options)
+  def parse_string_plain(options)
     parser = Parser.build(self) do
-      chars = +parse_char_out([ATTRIBUTE_VALUE_END, ESCAPE_START]).many(1)
+      chars = +parse_char_out([STRING_END, ESCAPE_START]).many(1)
       next chars.join
     end
     return parser
