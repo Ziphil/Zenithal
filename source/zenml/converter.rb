@@ -8,6 +8,8 @@ include REXML
 
 class ZenithalConverter
 
+  SINGLETON_NAMES = ["br", "img", "hr", "meta", "input", "embed", "area", "base", "link"]
+
   attr_reader :configs
 
   def initialize(document, type = :node)
@@ -119,6 +121,30 @@ class ZenithalConverter
     else
       @default_text_template = block
     end
+  end
+
+  def self.simple_html(document)
+    converter = ZenithalConverter.new(document, :text)
+    converter.add([//], [""]) do |element|
+      close = !SINGLETON_NAMES.include?(element.name)
+      html = "<#{element.name}"
+      element.attributes.each_attribute do |attribute|
+        html << " #{attribute.name}='#{attribute.to_s}'"
+      end
+      html << ">"
+      if close
+        html << apply(element, "")
+        html << "</#{element.name}>"
+      end
+      if element.name == "html"
+        html = "<!DOCTYPE html>\n\n" + html
+      end
+      next html
+    end
+    converter.add_default(nil) do |text|
+      next text.to_s
+    end
+    return convert
   end
 
 end
