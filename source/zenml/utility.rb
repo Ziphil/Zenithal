@@ -143,7 +143,7 @@ end
 class String
 
   def ~
-    return Text.new(self, true, nil, true)
+    return Text.new(self, true, nil, false)
   end
 
 end
