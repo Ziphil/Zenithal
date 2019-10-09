@@ -144,7 +144,7 @@ class ZenithalConverter
     converter.add_default(nil) do |text|
       next text.to_s
     end
-    return convert
+    return converter
   end
 
 end
