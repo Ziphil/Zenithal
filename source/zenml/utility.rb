@@ -18,11 +18,11 @@ class Element
     end
   end
 
-  def []=(key, value)
+  def []=(key, *values)
     if key.is_a?(String)
-      return add_attribute(key, value)
+      return add_attribute(key, values.first)
     else
-      return old_set_index(key)
+      return old_set_index(key, *values)
     end
   end
 
