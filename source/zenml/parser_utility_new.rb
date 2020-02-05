@@ -47,10 +47,10 @@ class Parser
         message = ""
       end
       unless predicate
-        error(error_message(message))
+        throw_custom(error_message(message))
       end
     else
-      error(error_message("Unexpected end of file"))
+      throw_custom(error_message("Unexpected end of file"))
     end
     char = @source.read
     return char
@@ -73,7 +73,7 @@ class Parser
     char = @source.peek
     unless char && chars.all?{|s| s != char}
       message = "Expected other than " + chars.map{|s| "'#{s}'"}.join(", ")
-      error(error_message(message))
+      throw_custom(error_message(message))
     end
     char = @source.read
     return char
@@ -82,7 +82,7 @@ class Parser
   def parse_eof
     char = @source.peek
     unless char == nil
-      error(error_message("Document ends before reaching end of file"))
+      throw_custom(error_message("Document ends before reaching end of file"))
     end
     char = @source.read
     return true
@@ -90,7 +90,7 @@ class Parser
 
   # Parses nothing; thus an error always occur.
   def parse_none
-    error(error_message("This cannot happen"))
+    throw_custom(error_message("This cannot happen"))
     return nil
   end
 
@@ -100,12 +100,12 @@ class Parser
   def try(parser)
     mark = @source.mark
     value = nil
-    message = catch(ERROR_TAG) do
+    message = catch_custom do
       value = parser.call
     end
     unless value
       @source.reset(mark)
-      error(message)
+      throw_custom(message)
     end
     return value
   end
@@ -116,7 +116,7 @@ class Parser
     value, message = nil, ""
     parsers.each do |parser|
       mark = @source.mark
-      message = catch(ERROR_TAG) do
+      message = catch_custom do
         value = parser.call
       end
       if value
@@ -126,7 +126,7 @@ class Parser
       end
     end
     unless value
-      error(message)
+      throw_custom(message)
     end
     return value
   end
@@ -140,7 +140,7 @@ class Parser
     loop do
       mark = @source.mark
       value = nil
-      message = catch(ERROR_TAG) do
+      message = catch_custom do
         value = parser.call
       end
       if value
@@ -151,13 +151,13 @@ class Parser
         end
       else
         if mark != @source.mark
-          error(message)
+          throw_custom(message)
         end
         break
       end
     end
     unless count >= lower_limit
-      error(message)
+      throw_custom(message)
     end
     return values
   end
@@ -167,9 +167,15 @@ class Parser
     return value
   end
 
+  # Catch a parse error.
+  # Do not use the standard exception mechanism during parsing.
+  def catch_custom(&block)
+    catch(ERROR_TAG, &block)
+  end
+
   # Raises a parse error.
-  # Do not use the standard exception mechanism during parsing, and always use this method to avoid creating a unnecessary stacktrace.
-  def error(message)
+  # Do not use the standard exception mechanism during parsing, and always use this method to avoid creating an unnecessary stacktrace.
+  def throw_custom(message)
     throw(ERROR_TAG, message)
   end
 
