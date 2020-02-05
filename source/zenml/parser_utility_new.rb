@@ -132,10 +132,13 @@ class Parser
   end
 
   def many(parser, lower_limit = 0, upper_limit = nil)
-    values, count = [], 0
+    values, message, count = [], "", 0
     loop do
       mark = @source.mark
-      value = parser.call
+      value = nil
+      message = catch(ERROR_TAG) do
+        value = parser.call
+      end
       if value
         values << value
         count += 1
@@ -148,7 +151,7 @@ class Parser
       end
     end
     unless count >= lower_limit
-      error(error_message("Less match"))
+      error(message)
     end
     return values
   end
