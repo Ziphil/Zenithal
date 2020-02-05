@@ -14,13 +14,13 @@ class Parser
     return value
   end
 
-  private
-
   # Parses a whole data.
   # This method is intended to be overridden in subclasses.
   def parse_whole
     parse_none
   end
+
+  private
 
   # Parses a single character which matches the specified query.
   # If the next character does not match the query or the end of file is reached, then an error occurs and no input is consumed.

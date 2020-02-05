@@ -44,11 +44,11 @@ module ZenithalParserMethod
     0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF
   ]
 
-  private
-
   def parse_whole
     parse_document
   end
+
+  private
 
   def parse_document
     document = Document.new
@@ -61,17 +61,22 @@ module ZenithalParserMethod
   end
 
   def parse_nodes(options)
-    parsers = []
-    unless options[:verbal]
-      parsers << ->{parse_element(options)}
-      @special_element_names.each do |kind, name|
-        parsers << ->{parse_special_element(kind, options)}
+    nodes = nil
+    if options[:plugin]
+      nodes = options[:plugin].parse_whole
+    else
+      parsers = []
+      unless options[:verbal]
+        parsers << ->{parse_element(options)}
+        @special_element_names.each do |kind, name|
+          parsers << ->{parse_special_element(kind, options)}
+        end
+        parsers << ->{parse_comment(options)}
       end
-      parsers << ->{parse_comment(options)}
+      parsers << ->{parse_text(options)}
+      raw_nodes = many(->{choose(*parsers)})
+      nodes = raw_nodes.inject(Nodes[], :<<)
     end
-    parsers << ->{parse_text(options)}
-    raw_nodes = many(->{choose(*parsers)})
-    nodes = raw_nodes.inject(Nodes[], :<<)
     return nodes
   end
 
@@ -272,12 +277,14 @@ module ZenithalParserMethod
     return space
   end
 
-  # Determines options which are used when parsing the children nodes.
-  # This method may be overrided in order to change the parsing behaviour for another format based on ZenML.
   def determine_options(name, marks, attributes, macro, options)
     if marks.include?(:verbal)
       options = options.clone
       options[:verbal] = true
+    end
+    if macro && @plugins.key?(name)
+      options = options.clone
+      options[:plugin] = @plugins[name]
     end
     return options
   end
@@ -394,10 +401,16 @@ class ZenithalParser < Parser
     @version = nil
     @special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
     @macros = {}
+    @plugins = {}
   end
 
   def register_macro(name, &block)
     @macros.store(name, block)
+  end
+
+  def register_plugin(name, parser_class)
+    parser = parser_class.new(@source)
+    @plugins.store(name, parser)
   end
 
   def brace_name=(name)
