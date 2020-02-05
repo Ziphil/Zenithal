@@ -17,7 +17,7 @@ class Parser
   end
 
   def exec
-    value = Parser.exec(->{parse_whole})
+    value = Parser.exec(->{parse})
     return value
   end
 
