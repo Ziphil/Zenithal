@@ -9,14 +9,14 @@ class Parser
     @source = (source.is_a?(StringReader)) ? source : StringReader.new(source.to_s)
   end
 
-  def parse
+  def exec
     value = Parser.exec(->{parse_whole})
     return value
   end
 
   # Parses a whole data.
   # This method is intended to be overridden in subclasses.
-  def parse_whole
+  def parse
     parse_none
   end
 

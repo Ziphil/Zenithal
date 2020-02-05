@@ -44,7 +44,7 @@ module ZenithalParserMethod
     0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF
   ]
 
-  def parse_whole
+  def parse
     parse_document
   end
 
@@ -63,7 +63,7 @@ module ZenithalParserMethod
   def parse_nodes(options)
     nodes = nil
     if options[:plugin]
-      nodes = options[:plugin].parse_whole
+      nodes = options[:plugin].parse
     else
       parsers = []
       unless options[:verbal]
