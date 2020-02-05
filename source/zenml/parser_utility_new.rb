@@ -62,7 +62,7 @@ class Parser
     queries.each do |query|
       parsers << ->{parse_char(query)}
     end
-    char = choose(parsers)
+    char = choose(*parsers)
     return char
   end
 
@@ -70,7 +70,7 @@ class Parser
   # If the next character coincides with any of the elements of the arguments, then an error occurs and no input is consumed.
   # Otherwise, a string which consists of the next single chracter is returned.
   def parse_char_out(chars)
-    char = @source.peak
+    char = @source.peek
     unless char && chars.all?{|s| s != char}
       message = "Expected other than " + chars.map{|s| "'#{s}'"}.join(", ")
       error(error_message(message))
@@ -80,7 +80,7 @@ class Parser
   end
 
   def parse_eof
-    char = @source.peak
+    char = @source.peek
     unless char == nil
       error(error_message("Document ends before reaching end of file"))
     end
@@ -146,7 +146,9 @@ class Parser
           break
         end
       else
-        @source.reset(mark)
+        if mark != @source.mark
+          error(message)
+        end
         break
       end
     end
@@ -157,7 +159,7 @@ class Parser
   end
 
   def maybe(parser)
-    value = self.many(parser, 0, 1).first
+    value = many(parser, 0, 1).first
     return value
   end
 

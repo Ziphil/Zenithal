@@ -70,7 +70,7 @@ module ZenithalParserMethod
       parsers << ->{parse_comment(options)}
     end
     parsers << ->{parse_text(options)}
-    raw_nodes = many(->{choose(parsers)})
+    raw_nodes = many(->{choose(*parsers)})
     nodes = raw_nodes.inject(Nodes[], :<<)
     return nodes
   end
@@ -112,9 +112,9 @@ module ZenithalParserMethod
   
   def parse_mark(options)
     parsers = MARKS.map do |mark, query|
-      next ->{parse_char(query).then{|_| mark}}
+      next ->{parse_char(query).yield_self{|_| mark}}
     end
-    mark = choose(parsers)
+    mark = choose(*parsers)
     return mark
   end
 
@@ -135,7 +135,7 @@ module ZenithalParserMethod
     value = maybe(->{parse_attribute_value(options)}) || name
     parse_space
     attribute = {name => value}
-    next attribute
+    return attribute
   end
 
   def parse_attribute_value(options)
@@ -147,7 +147,7 @@ module ZenithalParserMethod
 
   def parse_string(options)
     parse_char(STRING_START)
-    strings = many(->{parse_string_plain_or_escape(:string, options)})
+    strings = many(->{parse_string_plain_or_escape(options)})
     parse_char(STRING_END)
     string = strings.join
     return string
@@ -159,8 +159,8 @@ module ZenithalParserMethod
     return string
   end
 
-  def parse_string_plain_or_escape(place, options)
-    string = choose(->{parse_escape(place, options)}, ->{parse_string_plain(options)})
+  def parse_string_plain_or_escape(options)
+    string = choose(->{parse_escape(:string, options)}, ->{parse_string_plain(options)})
     return string
   end
 
@@ -185,7 +185,7 @@ module ZenithalParserMethod
   end
 
   def parse_text(options)
-    raw_texts = many(->{parse_string_plain_or_escape(:text, options)}, 1)
+    raw_texts = many(->{parse_text_plain_or_escape(options)}, 1)
     text = create_text(raw_texts.join, options)
     return text
   end
@@ -200,6 +200,11 @@ module ZenithalParserMethod
     end
     chars = many(->{parse_char_out(out_chars)}, 1)
     string = chars.join
+    return string
+  end
+
+  def parse_text_plain_or_escape(options)
+    string = choose(->{parse_escape(:text, options)}, ->{parse_text_plain(options)})
     return string
   end
 
@@ -286,12 +291,12 @@ module ZenithalParserMethod
     end
     if marks.include?(:instruction)
       unless children_list.size <= 1
-        throw(:error, error_message("Processing instruction cannot have more than one argument"))
+        error(error_message("Processing instruction cannot have more than one argument"))
       end
       nodes = create_instruction(name, attributes, children_list.first, options)
     else
       unless marks.include?(:multiple) || children_list.size <= 1
-        throw(:error, error_message("Normal node cannot have more than one argument"))
+        error(error_message("Normal node cannot have more than one argument"))
       end
       nodes = create_normal_element(name, attributes, children_list, options)
     end
