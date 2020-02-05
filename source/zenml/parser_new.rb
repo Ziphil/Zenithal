@@ -154,7 +154,7 @@ module ZenithalParserMethod
   end
 
   def parse_string_plain(options)
-    chars = many(->{parse_char_out([STRING_END, ESCAPE_START])}, 1)
+    chars = many(->{parse_char_out([STRING_END, ESCAPE_START])}, 1..)
     string = chars.join
     return string
   end
@@ -185,7 +185,7 @@ module ZenithalParserMethod
   end
 
   def parse_text(options)
-    raw_texts = many(->{parse_text_plain_or_escape(options)}, 1)
+    raw_texts = many(->{parse_text_plain_or_escape(options)}, 1..)
     text = create_text(raw_texts.join, options)
     return text
   end
@@ -198,7 +198,7 @@ module ZenithalParserMethod
         out_chars.push(SPECIAL_ELEMENT_STARTS[kind], SPECIAL_ELEMENT_ENDS[kind]) if name
       end
     end
-    chars = many(->{parse_char_out(out_chars)}, 1)
+    chars = many(->{parse_char_out(out_chars)}, 1..)
     string = chars.join
     return string
   end

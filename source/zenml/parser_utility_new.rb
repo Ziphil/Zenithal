@@ -131,8 +131,12 @@ class Parser
     return value
   end
 
-  def many(parser, lower_limit = 0, upper_limit = nil)
+  def many(parser, range = 0..)
     values, message, count = [], "", 0
+    lower_limit, upper_limit = range.begin, range.end
+    if upper_limit && range.exclude_end?
+      upper_limit -= 1
+    end
     loop do
       mark = @source.mark
       value = nil
@@ -159,7 +163,7 @@ class Parser
   end
 
   def maybe(parser)
-    value = many(parser, 0, 1).first
+    value = many(parser, 0..1).first
     return value
   end
 
