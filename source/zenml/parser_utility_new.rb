@@ -90,7 +90,7 @@ class Parser
 
   # Parses nothing; thus an error always occur.
   def parse_none
-    error(ERROR_TAG, "This cannot happen")
+    error(error_message("This cannot happen"))
     return nil
   end
 
