@@ -377,7 +377,7 @@ module ZenithalParserMethod
         elements << raw_element
       end
     else
-      error(error_message("No such macro"))
+      error(error_message("No such macro '#{name}'"))
     end
     return elements
   end
