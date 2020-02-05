@@ -6,7 +6,14 @@ class Parser
   ERROR_TAG = Object.new
 
   def initialize(source)
-    @source = (source.is_a?(StringReader)) ? source : StringReader.new(source.to_s)
+    case source
+    when StringReader
+      @source = source
+    when File
+      @source = StringReader.new(source.read)
+    else
+      @source = StringReader.new(source.to_s)
+    end
   end
 
   def exec
