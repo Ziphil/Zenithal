@@ -79,9 +79,13 @@ class Parser
   # Otherwise, a string which consists of the next single chracter is returned.
   def parse_char_out(chars)
     char = @source.peek
-    unless char && chars.all?{|s| s != char}
-      message = "Expected other than " + chars.map{|s| "'#{s}'"}.join(", ")
-      throw_custom(error_message(message))
+    if char
+      if chars.any?{|s| s == char}
+        chars_string = chars.map{|s| "'#{s}'"}.join(", ")
+        throw_custom(error_message("Expected other than #{chars_string}"))
+      end
+    else
+      throw_custom(error_message("Unexpected end of file"))
     end
     char = @source.read
     return char
@@ -89,7 +93,7 @@ class Parser
 
   def parse_eof
     char = @source.peek
-    unless char == nil
+    if char
       throw_custom(error_message("Document ends before reaching end of file"))
     end
     char = @source.read
