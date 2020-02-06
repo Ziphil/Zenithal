@@ -10,8 +10,8 @@ module Zenithal
 
   require 'zenml/error'
   require 'zenml/reader'
-  require 'zenml/parser_utility_new'
-  require 'zenml/parser_new'
+  require 'zenml/parser_utility'
+  require 'zenml/parser'
   require 'zenml/converter'
 
 end

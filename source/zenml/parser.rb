@@ -44,261 +44,252 @@ module ZenithalParserMethod
     0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF
   ]
 
+  def parse
+    if @whole
+      parse_document
+    else
+      parse_nodes({})
+    end
+  end
+
   private
 
   def parse_document
-    parser = Parser.build(self) do
-      document = Document.new
-      children = +parse_nodes({})
-      +parse_eof
-      children.each do |child|
-        document.add(child)
-      end
-      next document
+    document = Document.new
+    children = parse_nodes({})
+    if @exact
+      parse_eof 
     end
-    return parser
+    children.each do |child|
+      document.add(child)
+    end
+    return document
   end
 
   def parse_nodes(options)
-    parser = Parser.build(self) do
-      parsers = [parse_text(options)]
+    nodes = nil
+    if options[:plugin]
+      nodes = options[:plugin].parse
+    else
+      parsers = []
       unless options[:verbal]
-        parsers.push(parse_element(options), parse_line_comment(options), parse_block_comment(options))
+        parsers << ->{parse_element(options)}
         @special_element_names.each do |kind, name|
-          parsers.push(parse_special_element(kind, options))
+          parsers << ->{parse_special_element(kind, options)}
         end
+        parsers << ->{parse_comment(options)}
       end
-      raw_nodes = +parsers.inject(:|).many
+      parsers << ->{parse_text(options)}
+      raw_nodes = many(->{choose(*parsers)})
       nodes = raw_nodes.inject(Nodes[], :<<)
-      next nodes
     end
-    return parser
+    return nodes
   end
 
   def parse_element(options)
-    parser = Parser.build(self) do
-      start_char = +parse_char_any([ELEMENT_START, MACRO_START])
-      name = +parse_identifier(options)
-      marks = +parse_marks(options)
-      attributes = +parse_attributes(options).maybe || {}
-      next_options = determine_options(name, marks, attributes, start_char == MACRO_START, options)
-      children_list = +parse_children_list(next_options)
-      if name == SYSTEM_INSTRUCTION_NAME
-        +parse_space
-      end
-      if start_char == MACRO_START
-        next process_macro(name, marks, attributes, children_list, options)
-      else
-        next create_element(name, marks, attributes, children_list, options)
-      end
+    start_char = parse_char_any([ELEMENT_START, MACRO_START])
+    name = parse_identifier(options)
+    marks = parse_marks(options)
+    attributes = maybe(->{parse_attributes(options)}) || {}
+    macro = start_char == MACRO_START
+    next_options = determine_options(name, marks, attributes, macro, options)
+    children_list = parse_children_list(next_options)
+    if name == SYSTEM_INSTRUCTION_NAME
+      parse_space
     end
-    return parser
+    if start_char == MACRO_START
+      element = process_macro(name, marks, attributes, children_list, options)
+    else
+      element = create_element(name, marks, attributes, children_list, options)
+    end
+    return element
   end
 
   def parse_special_element(kind, options)
-    parser = Parser.build(self) do
-      unless @special_element_names[kind]
-        +parse_none
-      end
-      +parse_char(SPECIAL_ELEMENT_STARTS[kind])
-      children = +parse_nodes(options)
-      +parse_char(SPECIAL_ELEMENT_ENDS[kind])
-      next create_special_element(kind, children, options)
-    end
-    return parser
+    parse_char(SPECIAL_ELEMENT_STARTS[kind])
+    children = parse_nodes(options)
+    parse_char(SPECIAL_ELEMENT_ENDS[kind])
+    element = create_special_element(kind, children, options)
+    return element
   end
 
   def parse_marks(options)
-    return parse_mark(options).many
+    marks = many(->{parse_mark(options)})
+    return marks
   end
   
   def parse_mark(options)
     parsers = MARKS.map do |mark, query|
-      next parse_char(query).map{|_| mark}
+      next ->{parse_char(query).yield_self{|_| mark}}
     end
-    return parsers.inject(:|)
+    mark = choose(*parsers)
+    return mark
   end
 
   def parse_attributes(options)
-    parser = Parser.build(self) do
-      +parse_char(ATTRIBUTE_START)
-      first_attribute = +parse_attribute(true, options)
-      rest_attribtues = +parse_attribute(false, options).many
-      attributes = first_attribute.merge(*rest_attribtues)
-      +parse_char(ATTRIBUTE_END)
-      next attributes
-    end
-    return parser
+    parse_char(ATTRIBUTE_START)
+    first_attribute = parse_attribute(true, options)
+    rest_attribtues = many(->{parse_attribute(false, options)})
+    attributes = first_attribute.merge(*rest_attribtues)
+    parse_char(ATTRIBUTE_END)
+    return attributes
   end
 
   def parse_attribute(first, options)
-    parser = Parser.build(self) do
-      +parse_char(ATTRIBUTE_SEPARATOR) unless first
-      +parse_space
-      name = +parse_identifier(options)
-      +parse_space
-      value = +parse_attribute_value(options).maybe || name
-      +parse_space
-      next {name => value}
+    unless first
+      parse_char(ATTRIBUTE_SEPARATOR) 
     end
-    return parser
+    parse_space
+    name = parse_identifier(options)
+    parse_space
+    value = maybe(->{parse_attribute_value(options)}) || name
+    parse_space
+    attribute = {name => value}
+    return attribute
   end
 
   def parse_attribute_value(options)
-    parser = Parser.build(self) do
-      +parse_char(ATTRIBUTE_EQUAL)
-      +parse_space
-      value = +parse_string(options)
-      next value
-    end
-    return parser
+    parse_char(ATTRIBUTE_EQUAL)
+    parse_space
+    value = parse_string(options)
+    return value
   end
 
   def parse_string(options)
-    parser = Parser.build(self) do
-      +parse_char(STRING_START)
-      strings = +(parse_string_plain(options) | parse_escape(:string, options)).many
-      +parse_char(STRING_END)
-      next strings.join
-    end
-    return parser
+    parse_char(STRING_START)
+    strings = many(->{parse_string_plain_or_escape(options)})
+    parse_char(STRING_END)
+    string = strings.join
+    return string
   end
 
   def parse_string_plain(options)
-    parser = Parser.build(self) do
-      chars = +parse_char_out([STRING_END, ESCAPE_START]).many(1)
-      next chars.join
-    end
-    return parser
+    chars = many(->{parse_char_out([STRING_END, ESCAPE_START])}, 1..)
+    string = chars.join
+    return string
+  end
+
+  def parse_string_plain_or_escape(options)
+    string = choose(->{parse_escape(:string, options)}, ->{parse_string_plain(options)})
+    return string
   end
 
   def parse_children_list(options)
-    parser = Parser.build(self) do
-      first_children = +(parse_empty_children(options) | parse_children(options))
-      rest_children_list = +parse_children(options).many
-      children_list = [first_children] + rest_children_list
-      next children_list
-    end
-    return parser
+    first_children = choose(->{parse_empty_children(options)}, ->{parse_children(options)})
+    rest_children_list = many(->{parse_children(options)})
+    children_list = [first_children] + rest_children_list
+    return children_list
   end
 
   def parse_children(options)
-    parser = Parser.build(self) do
-      +parse_char(CONTENT_START)
-      children = +parse_nodes(options)
-      +parse_char(CONTENT_END)
-      next children
-    end
-    return parser
+    parse_char(CONTENT_START)
+    children = parse_nodes(options)
+    parse_char(CONTENT_END)
+    return children
   end
 
   def parse_empty_children(options)
-    parser = Parser.build(self) do
-      +parse_char(CONTENT_END)
-      next Nodes[]
-    end
-    return parser
+    parse_char(CONTENT_END)
+    children = Nodes[]
+    return children
   end
 
   def parse_text(options)
-    parser = Parser.build(self) do
-      raw_texts = +(parse_text_plain(options) | parse_escape(:text, options)).many(1)
-      next create_text(raw_texts.join, options)
-    end
-    return parser
+    raw_texts = many(->{parse_text_plain_or_escape(options)}, 1..)
+    text = create_text(raw_texts.join, options)
+    return text
   end
 
   def parse_text_plain(options)
-    parser = Parser.build(self) do
-      out_chars = [ESCAPE_START, CONTENT_END]
-      unless options[:verbal]
-        out_chars.push(ELEMENT_START, MACRO_START, CONTENT_START, COMMENT_DELIMITER)
-        @special_element_names.each do |kind, name|
-          out_chars.push(SPECIAL_ELEMENT_STARTS[kind], SPECIAL_ELEMENT_ENDS[kind]) if name
-        end
+    out_chars = [ESCAPE_START, CONTENT_END]
+    unless options[:verbal]
+      out_chars.push(ELEMENT_START, MACRO_START, CONTENT_START, COMMENT_DELIMITER)
+      @special_element_names.each do |kind, name|
+        out_chars.push(SPECIAL_ELEMENT_STARTS[kind], SPECIAL_ELEMENT_ENDS[kind])
       end
-      chars = +parse_char_out(out_chars).many(1)
-      next chars.join
     end
-    return parser
+    chars = many(->{parse_char_out(out_chars)}, 1..)
+    string = chars.join
+    return string
+  end
+
+  def parse_text_plain_or_escape(options)
+    string = choose(->{parse_escape(:text, options)}, ->{parse_text_plain(options)})
+    return string
+  end
+
+  def parse_comment(options)
+    parse_char(COMMENT_DELIMITER)
+    comment = choose(->{parse_line_comment(options)}, ->{parse_block_comment(options)})
+    return comment
   end
 
   def parse_line_comment(options)
-    parser = Parser.build(self) do
-      +parse_char(COMMENT_DELIMITER)
-      +parse_char(COMMENT_DELIMITER)
-      content = +parse_line_comment_content(options)
-      +parse_char("\n")
-      next create_comment(:line, content, options)
-    end
-    return parser
+    parse_char(COMMENT_DELIMITER)
+    content = parse_line_comment_content(options)
+    parse_char("\n")
+    comment = create_comment(:line, content, options)
+    return comment
   end
 
   def parse_line_comment_content(options)
-    parser = Parser.build(self) do
-      chars = +parse_char_out(["\n"]).many
-      next chars.join
-    end
-    return parser
+    chars = many(->{parse_char_out(["\n"])})
+    content = chars.join
+    return content
   end
 
   def parse_block_comment(options)
-    parser = Parser.build(self) do
-      +parse_char(COMMENT_DELIMITER)
-      +parse_char(CONTENT_START)
-      content = +parse_block_comment_content(options)
-      +parse_char(CONTENT_END)
-      +parse_char(COMMENT_DELIMITER)
-      next create_comment(:block, content, options)
-    end
-    return parser
+    parse_char(CONTENT_START)
+    content = parse_block_comment_content(options)
+    parse_char(CONTENT_END)
+    parse_char(COMMENT_DELIMITER)
+    comment = create_comment(:block, content, options)
+    return comment
   end
 
   def parse_block_comment_content(options)
-    parser = Parser.build(self) do
-      chars = +parse_char_out([CONTENT_END]).many
-      next chars.join
-    end
-    return parser
+    chars = many(->{parse_char_out([CONTENT_END])})
+    content = chars.join
+    return content
   end
 
   def parse_escape(place, options)
-    parser = Parser.build(self) do
-      +parse_char(ESCAPE_START)
-      char = +parse_char
-      next create_escape(place, char, options)
-    end
-    return parser
+    parse_char(ESCAPE_START)
+    char = parse_char
+    escape = create_escape(place, char, options)
+    return escape
   end
 
   def parse_identifier(options)
-    parser = Parser.build(self) do
-      first_char = +parse_first_identifier_char(options)
-      rest_chars = +parse_middle_identifier_char(options).many
-      identifier = first_char + rest_chars.join
-      next identifier
-    end
-    return parser
+    first_char = parse_first_identifier_char(options)
+    rest_chars = many(->{parse_middle_identifier_char(options)})
+    identifier = first_char + rest_chars.join
+    return identifier
   end
 
   def parse_first_identifier_char(options)
-    return parse_char_any(VALID_FIRST_IDENTIFIER_CHARS)
+    char = parse_char_any(VALID_FIRST_IDENTIFIER_CHARS)
+    return char
   end
 
   def parse_middle_identifier_char(options)
-    return parse_char_any(VALID_MIDDLE_IDENTIFIER_CHARS)
+    char = parse_char_any(VALID_MIDDLE_IDENTIFIER_CHARS)
+    return char
   end
 
   def parse_space
-    return parse_char_any(SPACE_CHARS).many
+    space = many(->{parse_char_any(SPACE_CHARS)})
+    return space
   end
 
-  # Determines options which are used when parsing the children nodes.
-  # This method may be overrided in order to change the parsing behaviour for another format based on ZenML.
   def determine_options(name, marks, attributes, macro, options)
     if marks.include?(:verbal)
       options = options.clone
       options[:verbal] = true
+    end
+    if macro && @plugins.key?(name)
+      options = options.clone
+      options[:plugin] = @plugins[name].call(attributes)
     end
     return options
   end
@@ -312,12 +303,12 @@ module ZenithalParserMethod
     end
     if marks.include?(:instruction)
       unless children_list.size <= 1
-        throw(:error, error_message("Processing instruction cannot have more than one argument"))
+        throw_custom(error_message("Processing instruction cannot have more than one argument"))
       end
       nodes = create_instruction(name, attributes, children_list.first, options)
     else
       unless marks.include?(:multiple) || children_list.size <= 1
-        throw(:error, error_message("Normal node cannot have more than one argument"))
+        throw_custom(error_message("Normal element cannot have more than one argument"))
       end
       nodes = create_normal_element(name, attributes, children_list, options)
     end
@@ -369,21 +360,27 @@ module ZenithalParserMethod
 
   def create_special_element(kind, children, options)
     name = @special_element_names[kind]
-    nodes = create_element(name, [], {}, [children], options)
+    if name
+      nodes = create_element(name, [], {}, [children], options)
+    else
+      throw_custom(error_message("No name specified for #{kind} elements"))
+    end
     return nodes
   end
 
   def create_text(raw_text, options)
-    return Text.new(raw_text, true, nil, false)
+    text = Text.new(raw_text, true, nil, false)
+    return text
   end
 
   def create_comment(kind, content, options)
-    return Comment.new(" " + content.strip + " ")
+    comment = Comment.new(" " + content.strip + " ")
+    return comment
   end
 
   def create_escape(place, char, options)
     unless ESCAPE_CHARS.include?(char)
-      throw(:error, "Invalid escape")
+      throw_custom(error_message("Invalid escape"))
     end
     return char
   end
@@ -395,44 +392,57 @@ module ZenithalParserMethod
       raw_elements.each do |raw_element|
         elements << raw_element
       end
+    elsif @plugins.key?(name)
+      elements = children_list.first
     else
-      throw(:error, error_message("No such macro"))
+      throw_custom(error_message("No such macro '#{name}'"))
     end
     return elements
-  end
-
-  def error_message(message)
-    return "[line #{@source.lineno}] #{message}"
   end
 
 end
 
 
-class ZenithalParser
+class ZenithalParser < Parser
 
-  include CommonParserMethod
   include ZenithalParserMethod
 
-  attr_reader :source
+  attr_accessor :exact
+  attr_accessor :whole
 
   def initialize(source)
-    @source = StringReader.new(source)
+    super(source)
     @version = nil
+    @exact = true
+    @whole = true
     @special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
     @macros = {}
+    @plugins = {}
   end
 
-  def parse
-    result = parse_document.exec
-    if result.success?
-      return result.value
-    else
-      raise ZenithalParseError.new(result.message)
-    end
-  end
-
+  # Registers a macro.
+  # To the argument block will be passed two arguments: the first is a hash of the attributes, the second is a list of the children nodes.
   def register_macro(name, &block)
     @macros.store(name, block)
+  end
+
+  def unregister_macro(name)
+    @macros.delete(name)
+  end
+
+  # Registers a plugin, which enables us to apply another parser in certain macros.
+  # If a class instance is passed, simply an instance of that class will be created and used as a custom parser.
+  # If a block is passed, it will be called to create a custom parser.
+  # To this block will be passed one argument: the attributes which are specified to the macro.
+  def register_plugin(name, clazz = nil, &block)
+    if clazz
+      block = lambda{|_| clazz.new(@source)}
+    end
+    @plugins.store(name, block)
+  end
+
+  def unregister_plugin(name)
+    @plugins.delete(name)
   end
 
   def brace_name=(name)

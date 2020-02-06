@@ -3,227 +3,207 @@
 
 class Parser
 
-  attr_reader :builder
+  ERROR_TAG = Object.new
 
-  def initialize(builder, &method)
-    @builder = builder
-    @method = method
-  end
-
-  def self.build(source, &block)
-    parser = Parser.new(source) do
-      value = nil
-      message = catch(:error) do
-        value = block.call
-      end
-      if value
-        next Result.success(value)
-      else
-        next Result.error(message)
-      end
-    end
-    return parser
-  end
-
-  def exec
-    return @builder.instance_eval(&@method)
-  end
-
-  def exec_get
-    result = self.exec
-    if result.success?
-      return result.value
+  def initialize(source)
+    case source
+    when StringReader
+      @source = source
+    when File
+      @source = StringReader.new(source.read)
     else
-      throw(:error, result.message)
+      @source = StringReader.new(source.to_s)
     end
   end
 
-  alias -@ exec
-  alias +@ exec_get
-
-  def |(other)
-    this = self
-    if this.builder.equal?(other.builder)
-      parser = Parser.new(this.builder) do
-        mark = source.mark
-        result = this.exec
-        if result.success?
-          next result
-        else
-          source.reset(mark)
-          result = other.exec
-          next result
-        end
-      end
-      return parser
-    else
-      raise StandardError.new("Different source")
-    end
+  def run
+    value = Parser.run(->{parse})
+    return value
   end
 
-  def many(lower_limit = 0, upper_limit = nil)
-    this = self
-    parser = Parser.new(this.builder) do
-      values, count = [], 0
-      loop do
-        mark = source.mark
-        each_result = this.exec
-        if each_result.success?
-          values << each_result.value
-          count += 1
-          if upper_limit && count >= upper_limit
-            break
-          end
-        else
-          source.reset(mark)
-          break
-        end
-      end
-      if count >= lower_limit
-        next Result.success(values)
-      else
-        next Result.error("")
-      end
-    end
-    return parser
+  # Parses a whole data.
+  # This method is intended to be overridden in subclasses.
+  def parse
+    throw_custom("Not implemented")
+    return nil
   end
-
-  def maybe
-    return self.many(0, 1).map{|s| s.first}
-  end
-
-  def map(&block)
-    this = self
-    parser = Parser.new(this.builder) do
-      result = this.exec
-      if result.success?
-        next Result.success(block.call(result.value))
-      else
-        next result
-      end
-    end
-    return parser
-  end
-
-end
-
-
-module CommonParserMethod
 
   private
 
   # Parses a single character which matches the specified query.
-  # If the next character does not match the query or the end of file is reached, an error result is returned.
-  # Otherwise, a success result with a string containing the matched chracter is returned.
+  # If the next character does not match the query or the end of file is reached, then an error occurs and no input is consumed.
+  # Otherwise, a string which consists of the matched single chracter is returned.
   def parse_char(query = nil)
-    parser = Parser.new(self) do
-      char = source.read
-      unless char == nil
-        predicate, message = false, nil
-        case query
-        when String
-          predicate = query == char
-          message = "Expected '#{query}'"
-        when Regexp
-          predicate = query =~ char
-          message = "Expected /#{query}/"
-        when Integer
-          predicate = query == char.ord
-          message = "Expected '#{query.chr}'"
-        when Range
-          predicate = query.cover?(char.ord)
-          message = "Expected '#{query.begin}'..'#{query.end}'"
-        when NilClass
-          predicate = true
-          message = ""
-        end
-        if predicate
-          next Result.success(char)
-        else
-          next Result.error(error_message(message))
-        end
-      else
-        next Result.error(error_message("Unexpected end of file"))
+    char = @source.peek
+    if char
+      predicate, message = false, nil
+      case query
+      when String
+        predicate = query == char
+        message = "Expected '#{query}'"
+      when Regexp
+        predicate = query =~ char
+        message = "Expected /#{query}/"
+      when Integer
+        predicate = query == char.ord
+        message = "Expected '#{query.chr}'"
+      when Range
+        predicate = query.cover?(char.ord)
+        message = "Expected '#{query.begin}'..'#{query.end}'"
+      when NilClass
+        predicate = true
+        message = ""
       end
+      unless predicate
+        throw_custom(error_message(message))
+      end
+    else
+      throw_custom(error_message("Unexpected end of file"))
     end
-    return parser
+    char = @source.read
+    return char
   end
 
   # Parses a single character which matches any of the specified queries.
   def parse_char_any(queries)
-    return queries.map{|s| parse_char(s)}.inject(:|)
+    parsers = []
+    queries.each do |query|
+      parsers << ->{parse_char(query)}
+    end
+    char = choose(*parsers)
+    return char
   end
 
   # Parses a single character other than the specified characters.
-  # If the next character coincides with any of the elements of the arguments, an error result is returned.
-  # Otherwise, a success result with a string containing the next chracter is returned.
+  # If the next character coincides with any of the elements of the arguments, then an error occurs and no input is consumed.
+  # Otherwise, a string which consists of the next single chracter is returned.
   def parse_char_out(chars)
-    parser = Parser.new(self) do
-      char = source.read
-      if char && chars.all?{|s| s != char}
-        next Result.success(char)
-      else
-        message = "Expected other than " + chars.map{|s| "'#{s}'"}.join(", ")
-        next Result.error(error_message(message))
+    char = @source.peek
+    if char
+      if chars.any?{|s| s == char}
+        chars_string = chars.map{|s| "'#{s}'"}.join(", ")
+        throw_custom(error_message("Expected other than #{chars_string}"))
       end
+    else
+      throw_custom(error_message("Unexpected end of file"))
     end
-    return parser
+    char = @source.read
+    return char
   end
 
   def parse_eof
-    parser = Parser.new(self) do
-      char = source.read
-      if char == nil
-        next Result.success(true)
-      else
-        next Result.error(error_message("Document ends before reaching end of file"))
+    char = @source.peek
+    if char
+      throw_custom(error_message("Document ends before reaching end of file"))
+    end
+    char = @source.read
+    return true
+  end
+
+  # Parses nothing; thus an error always occur.
+  def parse_none
+    throw_custom(error_message("This cannot happen"))
+    return nil
+  end
+
+  # Simply executes the specified parser, but additionally performs backtracking on error.
+  # If an error occurs in executing the parser, this method rewinds the state of the input to that before executing, and then raises an error.
+  # Otherwise, a result obtained by the parser is returned.
+  def try(parser)
+    mark = @source.mark
+    value = nil
+    message = catch_custom do
+      value = parser.call
+    end
+    unless value
+      @source.reset(mark)
+      throw_custom(message)
+    end
+    return value
+  end
+
+  # First this method executes the first specified parser.
+  # If it fails without consuming any input, then this method tries the next specified parser and repeats this procedure.
+  def choose(*parsers)
+    value, message = nil, ""
+    parsers.each do |parser|
+      mark = @source.mark
+      message = catch_custom do
+        value = parser.call
+      end
+      if value
+        break
+      elsif mark != @source.mark
+        break
       end
     end
-    return parser
-  end
-
-  # Returns a parser which always fails.
-  # That is, it always returns an error result.
-  def parse_none
-    parser = Parser.new(self) do
-      next Result.error(error_message("This cannot happen"))
+    unless value
+      throw_custom(message)
     end
-    return parser
+    return value
   end
 
-end
-
-
-class Result
-
-  attr_reader :value
-  attr_reader :message
-
-  def initialize(value, message)
-    @value = value
-    @message = message
-  end
-  
-  def self.success(value)
-    return Result.new(value, nil)
-  end
-
-  def self.error(message)
-    return Result.new(nil, message)
-  end
-
-  def value=(value)
-    if self.success?
-      @value = value
+  def many(parser, range = 0..)
+    values, message, count = [], "", 0
+    lower_limit, upper_limit = range.begin, range.end
+    if upper_limit && range.exclude_end?
+      upper_limit -= 1
     end
+    loop do
+      mark = @source.mark
+      value = nil
+      message = catch_custom do
+        value = parser.call
+      end
+      if value
+        values << value
+        count += 1
+        if upper_limit && count >= upper_limit
+          break
+        end
+      else
+        if mark != @source.mark
+          throw_custom(message)
+        end
+        break
+      end
+    end
+    unless count >= lower_limit
+      throw_custom(message)
+    end
+    return values
   end
 
-  def success?
-    return !@message
+  def maybe(parser)
+    value = many(parser, 0..1).first
+    return value
   end
 
-  def error?
-    return !!@message
+  # Catch a parse error.
+  # Do not use the standard exception mechanism during parsing.
+  def catch_custom(&block)
+    catch(ERROR_TAG, &block)
+  end
+
+  # Raises a parse error.
+  # Do not use the standard exception mechanism during parsing, and always use this method to avoid creating an unnecessary stacktrace.
+  def throw_custom(message)
+    throw(ERROR_TAG, message)
+  end
+
+  def error_message(message)
+    return "[line #{@source.lineno}] #{message}"
+  end
+
+  def self.run(parser)
+    value = nil
+    message = catch(ERROR_TAG) do
+      value = parser.call
+    end
+    unless value
+      raise ZenithalParseError.new(message)
+    end
+    return value
   end
 
 end
