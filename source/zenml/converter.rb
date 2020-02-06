@@ -123,6 +123,7 @@ class ZenithalConverter
     end
   end
 
+  ## Returns a simple converter that converts an XML document to the equivalent HTML document.
   def self.simple_html(document)
     converter = ZenithalConverter.new(document, :text)
     converter.add([//], [""]) do |element|
