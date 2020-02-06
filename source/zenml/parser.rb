@@ -73,15 +73,24 @@ module ZenithalParserMethod
     nodes = nil
     if options[:plugin]
       nodes = options[:plugin].parse
+    elsif options[:verbal]
+      raw_nodes = many(->{parse_text(options)})
+      nodes = raw_nodes.inject(Nodes[], :<<)
     else
       parsers = []
-      unless options[:verbal]
-        parsers << ->{parse_element(options)}
-        @special_element_names.each do |kind, name|
-          parsers << ->{parse_special_element(kind, options)}
-        end
-        parsers << ->{parse_comment(options)}
+      parsers << ->{parse_element(options)}
+      if options[:in_slash]
+        next_options = options.clone
+        next_options.delete(:in_slash)
+      else
+        next_options = options
       end
+      @special_element_names.each do |kind, name|
+        unless kind == :slash && options[:in_slash]
+          parsers << ->{parse_special_element(kind, next_options)}
+        end
+      end
+      parsers << ->{parse_comment(options)}
       parsers << ->{parse_text(options)}
       raw_nodes = many(->{choose(*parsers)})
       nodes = raw_nodes.inject(Nodes[], :<<)
@@ -110,7 +119,13 @@ module ZenithalParserMethod
 
   def parse_special_element(kind, options)
     parse_char(SPECIAL_ELEMENT_STARTS[kind])
-    children = parse_nodes(options)
+    if kind == :slash
+      next_options = options.clone
+      next_options[:in_slash] = true
+    else
+      next_options = options
+    end
+    children = parse_nodes(next_options)
     parse_char(SPECIAL_ELEMENT_ENDS[kind])
     element = create_special_element(kind, children, options)
     return element
