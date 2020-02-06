@@ -16,8 +16,8 @@ class Parser
     end
   end
 
-  def exec
-    value = Parser.exec(->{parse})
+  def run
+    value = Parser.run(->{parse})
     return value
   end
 
@@ -195,7 +195,7 @@ class Parser
     return "[line #{@source.lineno}] #{message}"
   end
 
-  def self.exec(parser)
+  def self.run(parser)
     value = nil
     message = catch(ERROR_TAG) do
       value = parser.call
