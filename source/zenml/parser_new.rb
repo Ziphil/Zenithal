@@ -45,7 +45,11 @@ module ZenithalParserMethod
   ]
 
   def parse
-    parse_document
+    if @whole
+      parse_document
+    else
+      parse_nodes({})
+    end
   end
 
   private
@@ -53,7 +57,7 @@ module ZenithalParserMethod
   def parse_document
     document = Document.new
     children = parse_nodes({})
-    parse_eof
+    parse_eof if @exact
     children.each do |child|
       document.add(child)
     end
@@ -284,7 +288,7 @@ module ZenithalParserMethod
     end
     if macro && @plugins.key?(name)
       options = options.clone
-      options[:plugin] = @plugins[name]
+      options[:plugin] = @plugins[name].call(attributes)
     end
     return options
   end
@@ -383,6 +387,8 @@ module ZenithalParserMethod
       raw_elements.each do |raw_element|
         elements << raw_element
       end
+    elsif @plugins.key?(name)
+      elements = children_list.first
     else
       throw_custom(error_message("No such macro '#{name}'"))
     end
@@ -396,9 +402,14 @@ class ZenithalParser < Parser
 
   include ZenithalParserMethod
 
+  attr_accessor :exact
+  attr_accessor :whole
+
   def initialize(source)
     super(source)
     @version = nil
+    @exact = true
+    @whole = true
     @special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
     @macros = {}
     @plugins = {}
@@ -408,9 +419,11 @@ class ZenithalParser < Parser
     @macros.store(name, block)
   end
 
-  def register_plugin(name, parser_class)
-    parser = parser_class.new(@source)
-    @plugins.store(name, parser)
+  def register_plugin(name, clazz = nil, &block)
+    if clazz
+      block = lambda{|_| clazz.new(@source)}
+    end
+    @plugins.store(name, block)
   end
 
   def brace_name=(name)
