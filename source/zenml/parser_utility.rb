@@ -205,7 +205,7 @@ class Parser
   end
 
   def error_message(message)
-    return "[line #{@source.lineno}] #{message}"
+    return "[line #{@source.lineno}, column #{@source.columnno}] #{message}"
   end
 
 end
