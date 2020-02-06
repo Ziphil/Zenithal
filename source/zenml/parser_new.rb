@@ -415,10 +415,16 @@ class ZenithalParser < Parser
     @plugins = {}
   end
 
+  # Registers a macro.
+  # To the argument block will be passed two arguments: the first is a hash of the attributes, the second is a list of the children nodes.
   def register_macro(name, &block)
     @macros.store(name, block)
   end
 
+  # Registers a plugin, which enables us to apply another parser in certain macros.
+  # If a class instance is passed, simply an instance of that class will be created and used as a custom parser.
+  # If a block is passed, it will be called to create a custom parser.
+  # To this block will be passed one argument: the attributes which are specified to the macro.
   def register_plugin(name, clazz = nil, &block)
     if clazz
       block = lambda{|_| clazz.new(@source)}
