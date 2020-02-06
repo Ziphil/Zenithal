@@ -421,6 +421,10 @@ class ZenithalParser < Parser
     @macros.store(name, block)
   end
 
+  def unregister_macro(name)
+    @macros.delete(name)
+  end
+
   # Registers a plugin, which enables us to apply another parser in certain macros.
   # If a class instance is passed, simply an instance of that class will be created and used as a custom parser.
   # If a block is passed, it will be called to create a custom parser.
@@ -430,6 +434,10 @@ class ZenithalParser < Parser
       block = lambda{|_| clazz.new(@source)}
     end
     @plugins.store(name, block)
+  end
+
+  def unregister_plugin(name)
+    @plugins.delete(name)
   end
 
   def brace_name=(name)
