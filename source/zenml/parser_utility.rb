@@ -46,10 +46,11 @@ class Parser
         message = "Expected /#{query}/"
       when Integer
         predicate = query == char.ord
-        message = "Expected '#{query.chr}'"
+        message = "Expected '#{query.chr("utf-8")}'"
       when Range
         predicate = query.cover?(char.ord)
-        message = "Expected '#{query.begin}'..'#{query.end}'"
+        symbol = (query.exclude_end?) ? "..." : ".."
+        message = "Expected '#{query.begin.chr("utf-8")}'#{symbol}'#{query.end.chr("utf-8")}'"
       when NilClass
         predicate = true
         message = ""
