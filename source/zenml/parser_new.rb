@@ -57,7 +57,9 @@ module ZenithalParserMethod
   def parse_document
     document = Document.new
     children = parse_nodes({})
-    parse_eof if @exact
+    if @exact
+      parse_eof 
+    end
     children.each do |child|
       document.add(child)
     end
@@ -134,7 +136,9 @@ module ZenithalParserMethod
   end
 
   def parse_attribute(first, options)
-    parse_char(ATTRIBUTE_SEPARATOR) unless first
+    unless first
+      parse_char(ATTRIBUTE_SEPARATOR) 
+    end
     parse_space
     name = parse_identifier(options)
     parse_space
