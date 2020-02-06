@@ -24,7 +24,7 @@ class Parser
   # Parses a whole data.
   # This method is intended to be overridden in subclasses.
   def parse
-    throw_custom("Not implemented"))
+    throw_custom("Not implemented")
     return nil
   end
 
