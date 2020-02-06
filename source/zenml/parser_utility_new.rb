@@ -123,7 +123,7 @@ class Parser
   end
 
   # First this method executes the first specified parser.
-  # If it fails without consuming any input, then this method trys the next specified parser and repeats this procedure.
+  # If it fails without consuming any input, then this method tries the next specified parser and repeats this procedure.
   def choose(*parsers)
     value, message = nil, ""
     parsers.each do |parser|
