@@ -52,17 +52,17 @@ class Parser
       case query
       when String
         predicate = query == char
-        message = "Expected '#{query}'"
+        message = "Expected '#{query}' but got '#{char}'"
       when Regexp
         predicate = query =~ char
-        message = "Expected /#{query}/"
+        message = "Expected /#{query}/ but got '#{char}'"
       when Integer
         predicate = query == char.ord
-        message = "Expected '##{query}'"
+        message = "Expected '##{query}' but got '#{char}'"
       when Range
         predicate = query.cover?(char.ord)
         symbol = (query.exclude_end?) ? "..." : ".."
-        message = "Expected '##{query.begin}'#{symbol}'##{query.end}'"
+        message = "Expected '##{query.begin}'#{symbol}'##{query.end}' but got '#{char}'"
       when NilClass
         predicate = true
         message = ""
@@ -95,7 +95,7 @@ class Parser
     if char
       if chars.any?{|s| s == char}
         chars_string = chars.map{|s| "'#{s}'"}.join(", ")
-        throw_custom(error_message("Expected other than #{chars_string}"))
+        throw_custom(error_message("Expected other than #{chars_string} but got '#{char}'"))
       end
     else
       throw_custom(error_message("Unexpected end of file"))
