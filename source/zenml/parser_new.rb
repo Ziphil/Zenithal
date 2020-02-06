@@ -104,9 +104,6 @@ module ZenithalParserMethod
   end
 
   def parse_special_element(kind, options)
-    unless @special_element_names[kind]
-      parse_none
-    end
     parse_char(SPECIAL_ELEMENT_STARTS[kind])
     children = parse_nodes(options)
     parse_char(SPECIAL_ELEMENT_ENDS[kind])
@@ -204,7 +201,7 @@ module ZenithalParserMethod
     unless options[:verbal]
       out_chars.push(ELEMENT_START, MACRO_START, CONTENT_START, COMMENT_DELIMITER)
       @special_element_names.each do |kind, name|
-        out_chars.push(SPECIAL_ELEMENT_STARTS[kind], SPECIAL_ELEMENT_ENDS[kind]) if name
+        out_chars.push(SPECIAL_ELEMENT_STARTS[kind], SPECIAL_ELEMENT_ENDS[kind])
       end
     end
     chars = many(->{parse_char_out(out_chars)}, 1..)
@@ -307,7 +304,7 @@ module ZenithalParserMethod
       nodes = create_instruction(name, attributes, children_list.first, options)
     else
       unless marks.include?(:multiple) || children_list.size <= 1
-        throw_custom(error_message("Normal node cannot have more than one argument"))
+        throw_custom(error_message("Normal element cannot have more than one argument"))
       end
       nodes = create_normal_element(name, attributes, children_list, options)
     end
@@ -359,7 +356,11 @@ module ZenithalParserMethod
 
   def create_special_element(kind, children, options)
     name = @special_element_names[kind]
-    nodes = create_element(name, [], {}, [children], options)
+    if name
+      nodes = create_element(name, [], {}, [children], options)
+    else
+      throw_custom(error_message("No name specified for #{kind} elements"))
+    end
     return nodes
   end
 
