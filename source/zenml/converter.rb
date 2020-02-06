@@ -18,8 +18,8 @@ class ZenithalConverter
     @configs = {}
     @templates = {}
     @functions = {}
-    @default_element_template = lambda{|s| (@type == :text) ? "" : Nodes[]}
-    @default_text_template = lambda{|s| (@type == :text) ? "" : Nodes[]}
+    @default_element_template = lambda{|_| empty_nodes}
+    @default_text_template = lambda{|_| empty_nodes}
   end
 
   def convert(initial_scope = "")
@@ -59,7 +59,7 @@ class ZenithalConverter
   end
 
   def apply(element, scope, *args)
-    nodes = (@type == :text) ? "" : Nodes[]
+    nodes = empty_nodes
     element.children.each do |child|
       case child
       when Element
@@ -78,7 +78,7 @@ class ZenithalConverter
   end
 
   def apply_select(element, xpath, scope, *args)
-    nodes = (@type == :text) ? "" : Nodes[]
+    nodes = empty_nodes
     element.each_xpath(xpath) do |child|
       case child
       when Element
@@ -97,7 +97,7 @@ class ZenithalConverter
   end
 
   def call(element, name, *args)
-    nodes = (@type == :text) ? "" : Nodes[]
+    nodes = empty_nodes
     @functions.each do |function_name, block|
       if function_name == name
         nodes = instance_exec(element, *args, &block)
@@ -121,6 +121,10 @@ class ZenithalConverter
     else
       @default_text_template = block
     end
+  end
+
+  def empty_nodes
+    return (@type == :text) ? "" : Nodes[]
   end
 
   ## Returns a simple converter that converts an XML document to the equivalent HTML document.
