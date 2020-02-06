@@ -45,6 +45,9 @@ module ZenithalParserMethod
   ]
 
   def parse
+    unless @inside_run
+      warn("This method is now only for internal use. Use 'run' instead.", uplevel: 1)
+    end
     if @whole
       parse_document
     else

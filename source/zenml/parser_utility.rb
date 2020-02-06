@@ -14,10 +14,22 @@ class Parser
     else
       @source = StringReader.new(source.to_s)
     end
+    @inside_run = false
   end
 
   def run
-    value = Parser.run(->{parse})
+    value = nil
+    message = catch(ERROR_TAG) do
+      begin
+        @inside_run = true
+        value = parse
+      ensure
+        @inside_run = false
+      end
+    end
+    unless value
+      raise ZenithalParseError.new(message)
+    end
     return value
   end
 
@@ -194,17 +206,6 @@ class Parser
 
   def error_message(message)
     return "[line #{@source.lineno}] #{message}"
-  end
-
-  def self.run(parser)
-    value = nil
-    message = catch(ERROR_TAG) do
-      value = parser.call
-    end
-    unless value
-      raise ZenithalParseError.new(message)
-    end
-    return value
   end
 
 end
