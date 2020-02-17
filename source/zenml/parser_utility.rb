@@ -20,7 +20,15 @@ class Parser
   end
 
   def update(source)
-    initialize(source)
+    case source
+    when StringReader
+      @source = source
+    when File
+      @source = StringReader.new(source.read)
+    else
+      @source = StringReader.new(source.to_s)
+    end
+    @inside_run = false
   end
 
   def run
