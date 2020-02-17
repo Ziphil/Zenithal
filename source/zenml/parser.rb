@@ -438,6 +438,11 @@ class ZenithalParser < Parser
     @plugins = {}
   end
 
+  def update(source)
+    super(source)
+    @version = nil
+  end
+
   # Registers a macro.
   # To the argument block will be passed two arguments: the first is a hash of the attributes, the second is a list of the children nodes.
   def register_macro(name, &block)

@@ -5,6 +5,8 @@ class Parser
 
   ERROR_TAG = Object.new
 
+  attr_reader :source
+
   def initialize(source)
     case source
     when StringReader
@@ -15,6 +17,10 @@ class Parser
       @source = StringReader.new(source.to_s)
     end
     @inside_run = false
+  end
+
+  def update(source)
+    initialize(source)
   end
 
   def run

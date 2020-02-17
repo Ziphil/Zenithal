@@ -10,16 +10,26 @@ class ZenithalConverter
 
   SINGLETON_NAMES = ["br", "img", "hr", "meta", "input", "embed", "area", "base", "link"]
 
+  attr_reader :document
   attr_reader :configs
+  attr_reader :variables
 
   def initialize(document, type = :node)
     @document = document
     @type = type
     @configs = {}
+    @variables = {}
     @templates = {}
     @functions = {}
     @default_element_template = lambda{|_| empty_nodes}
     @default_text_template = lambda{|_| empty_nodes}
+  end
+
+  # Changes the document to be converted.
+  # Note that this method initialises the configuration hash, but not the variable hash.
+  def update(document)
+    @document = document
+    @configs = {}
   end
 
   def convert(initial_scope = "")
