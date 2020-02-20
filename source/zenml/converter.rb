@@ -11,9 +11,9 @@ class ZenithalConverter
   SINGLETON_NAMES = ["br", "img", "hr", "meta", "input", "embed", "area", "base", "link"]
 
   attr_reader :document
-  attr_reader :configs
-  attr_reader :variables
-  attr_reader :functions
+  attr_accessor :configs
+  attr_accessor :variables
+  attr_accessor :functions
 
   def initialize(document, type = :node)
     @document = document
