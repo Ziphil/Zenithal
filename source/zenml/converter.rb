@@ -13,6 +13,7 @@ class ZenithalConverter
   attr_reader :document
   attr_reader :configs
   attr_reader :variables
+  attr_reader :functions
 
   def initialize(document, type = :node)
     @document = document
@@ -23,13 +24,14 @@ class ZenithalConverter
     @functions = {}
     @default_element_template = lambda{|_| empty_nodes}
     @default_text_template = lambda{|_| empty_nodes}
+    reset_variables
   end
 
   # Changes the document to be converted.
-  # Note that this method initialises the configuration hash, but not the variable hash.
+  # Note that this method initialises the variable hash, but not the configuration hash.
   def update(document)
     @document = document
-    @configs = {}
+    reset_variables
   end
 
   def convert(initial_scope = "")
@@ -137,7 +139,13 @@ class ZenithalConverter
     return (@type == :text) ? "" : Nodes[]
   end
 
-  ## Returns a simple converter that converts an XML document to the equivalent HTML document.
+  # Override this method to customise how to initialise the variable hash.
+  # This method is called when creating or updating an instance.
+  def reset_variables
+    @variables = {}
+  end
+
+  # Returns a simple converter that converts an XML document to the equivalent HTML document.
   def self.simple_html(document)
     converter = ZenithalConverter.new(document, :text)
     converter.add([//], [""]) do |element|
