@@ -23,7 +23,7 @@ module ZenithalParserMethod
   SPECIAL_ELEMENT_ENDS = {:brace => "}", :bracket => "]", :slash => "/"}
   COMMENT_DELIMITER = "#"
   SYSTEM_INSTRUCTION_NAME = "zml"
-  MARKS = {:instruction => "?", :trim => "*", :verbal => "~", :multiple => "+"}
+  MARK_CHARS = {:instruction => "?", :trim => "*", :verbal => "~", :multiple => "+"}
   ESCAPE_CHARS = ["&", "<", ">", "'", "\"", "{", "}", "[", "]", "/", "\\", "|", "`", "#"]
   SPACE_CHARS = [0x20, 0x9, 0xD, 0xA]
   VALID_FIRST_IDENTIFIER_CHARS = [
@@ -137,7 +137,7 @@ module ZenithalParserMethod
   end
   
   def parse_mark(options)
-    parsers = MARKS.map do |mark, query|
+    parsers = MARK_CHARS.map do |mark, query|
       next ->{parse_char(query).yield_self{|_| mark}}
     end
     mark = choose(*parsers)
