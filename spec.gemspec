@@ -8,7 +8,7 @@ end
 
 Gem::Specification.new do |spec|
   spec.name = "zenml"
-  spec.version = "1.5.0"
+  spec.version = "1.5.1"
   spec.authors = ["Ziphil"]
   spec.email = ["ziphil.shaleiras@gmail.com"]
   spec.licenses = ["MIT"]
