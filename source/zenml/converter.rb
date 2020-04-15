@@ -1,12 +1,7 @@
 # coding: utf-8
 
 
-require 'pp'
-require 'rexml/document'
-include REXML
-
-
-class ZenithalConverter
+class Zenithal::ZenithalConverter
 
   SINGLETON_NAMES = ["br", "img", "hr", "meta", "input", "embed", "area", "base", "link"]
 
@@ -39,7 +34,7 @@ class ZenithalConverter
     if @type == :text
       document = convert_element(@document.root, initial_scope)
     else
-      document = Document.new
+      document = REXML::Document.new
       children = convert_element(@document.root, initial_scope)
       children.each do |child|
         document.add(child)
@@ -74,12 +69,12 @@ class ZenithalConverter
     nodes = empty_nodes
     element.children.each do |child|
       case child
-      when Element
+      when REXML::Element
         result_nodes = convert_element(child, scope, *args)
         if result_nodes
           nodes << result_nodes
         end
-      when Text
+      when REXML::Text
         result_nodes = convert_text(child, scope, *args)
         if result_nodes
           nodes << result_nodes
@@ -93,12 +88,12 @@ class ZenithalConverter
     nodes = empty_nodes
     element.each_xpath(xpath) do |child|
       case child
-      when Element
+      when REXML::Element
         result_nodes = convert_element(child, scope, *args)
         if result_nodes
           nodes << result_nodes
         end
-      when Text
+      when REXML::Text
         result_nodes = convert_text(child, scope, *args)
         if result_nodes
           nodes << result_nodes
@@ -136,7 +131,7 @@ class ZenithalConverter
   end
 
   def empty_nodes
-    return (@type == :text) ? "" : Nodes[]
+    return (@type == :text) ? "" : REXML::Nodes[]
   end
 
   # Override this method to customise how to initialise the variable hash.
@@ -147,7 +142,7 @@ class ZenithalConverter
 
   # Returns a simple converter that converts an XML document to the equivalent HTML document.
   def self.simple_html(document)
-    converter = ZenithalConverter.new(document, :text)
+    converter = Zenithal::ZenithalConverter.new(document, :text)
     converter.add([//], [""]) do |element|
       close = !SINGLETON_NAMES.include?(element.name)
       html = "<#{element.name}"

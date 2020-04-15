@@ -1,7 +1,7 @@
 # coding: utf-8
 
 
-class ZenithalParseError < StandardError
+class Zenithal::ZenithalParseError < StandardError
 
   def initialize(message = "")
     super(message)

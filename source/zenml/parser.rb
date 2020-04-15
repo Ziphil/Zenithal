@@ -1,12 +1,7 @@
 # coding: utf-8
 
 
-require 'pp'
-require 'rexml/document'
-include REXML
-
-
-module ZenithalParserMethod
+module Zenithal::ZenithalParserMethod
 
   ELEMENT_START = "\\"
   MACRO_START = "&"
@@ -58,7 +53,7 @@ module ZenithalParserMethod
   private
 
   def parse_document
-    document = Document.new
+    document = REXML::Document.new
     children = parse_nodes({})
     if @exact
       parse_eof 
@@ -75,7 +70,7 @@ module ZenithalParserMethod
       nodes = options[:plugin].parse
     elsif options[:verbal]
       raw_nodes = many(->{parse_text(options)})
-      nodes = raw_nodes.inject(Nodes[], :<<)
+      nodes = raw_nodes.inject(REXML::Nodes[], :<<)
     else
       parsers = []
       parsers << ->{parse_element(options)}
@@ -93,7 +88,7 @@ module ZenithalParserMethod
       parsers << ->{parse_comment(options)}
       parsers << ->{parse_text(options)}
       raw_nodes = many(->{choose(*parsers)})
-      nodes = raw_nodes.inject(Nodes[], :<<)
+      nodes = raw_nodes.inject(REXML::Nodes[], :<<)
     end
     return nodes
   end
@@ -208,7 +203,7 @@ module ZenithalParserMethod
 
   def parse_empty_children(options)
     parse_char(CONTENT_END)
-    children = Nodes[]
+    children = REXML::Nodes[]
     return children
   end
 
@@ -313,7 +308,7 @@ module ZenithalParserMethod
   end
 
   def create_element(name, marks, attributes, children_list, options)
-    nodes = Nodes[]
+    nodes = REXML::Nodes[]
     if marks.include?(:trim)
       children_list.each do |children|
         children.trim_indents
@@ -334,20 +329,20 @@ module ZenithalParserMethod
   end
 
   def create_instruction(target, attributes, children, options)
-    nodes = Nodes[]
+    nodes = REXML::Nodes[]
     if target == SYSTEM_INSTRUCTION_NAME
       @version = attributes["version"] if attributes["version"]
       @special_element_names[:brace] = attributes["brace"] if attributes["brace"]
       @special_element_names[:bracket] = attributes["bracket"] if attributes["bracket"]
       @special_element_names[:slash] = attributes["slash"] if attributes["slash"]
     elsif target == "xml"
-      instruction = XMLDecl.new
-      instruction.version = attributes["version"] || XMLDecl::DEFAULT_VERSION
+      instruction = REXML::XMLDecl.new
+      instruction.version = attributes["version"] || REXML::XMLDecl::DEFAULT_VERSION
       instruction.encoding = attributes["encoding"]
       instruction.standalone = attributes["standalone"]
       nodes << instruction
     else
-      instruction = Instruction.new(target)
+      instruction = REXML::Instruction.new(target)
       actual_contents = []
       attributes.each do |key, value|
         actual_contents << "#{key}=\"#{value}\""
@@ -362,9 +357,9 @@ module ZenithalParserMethod
   end
 
   def create_normal_element(name, attributes, children_list, options)
-    nodes = Nodes[]
+    nodes = REXML::Nodes[]
     children_list.each do |children|
-      element = Element.new(name)
+      element = REXML::Element.new(name)
       attributes.each do |key, value|
         element.add_attribute(key, value)
       end
@@ -387,12 +382,12 @@ module ZenithalParserMethod
   end
 
   def create_text(raw_text, options)
-    text = Text.new(raw_text, true, nil, false)
+    text = REXML::Text.new(raw_text, true, nil, false)
     return text
   end
 
   def create_comment(kind, content, options)
-    comment = Comment.new(" " + content.strip + " ")
+    comment = REXML::Comment.new(" " + content.strip + " ")
     return comment
   end
 
@@ -404,7 +399,7 @@ module ZenithalParserMethod
   end
 
   def process_macro(name, marks, attributes, children_list, options)
-    elements = Nodes[]
+    elements = REXML::Nodes[]
     if @macros.key?(name)
       raw_elements = @macros[name].call(attributes, children_list)
       raw_elements.each do |raw_element|
@@ -421,9 +416,9 @@ module ZenithalParserMethod
 end
 
 
-class ZenithalParser < Parser
+class Zenithal::ZenithalParser < Zenithal::Parser
 
-  include ZenithalParserMethod
+  include Zenithal::ZenithalParserMethod
 
   attr_accessor :exact
   attr_accessor :whole

@@ -1,17 +1,19 @@
 # coding: utf-8
 
 
-require 'zenml/utility'
-
-
 module Zenithal
 
-  VERSION = "1.5.0"
-
-  require 'zenml/error'
-  require 'zenml/reader'
-  require 'zenml/parser_utility'
-  require 'zenml/parser'
-  require 'zenml/converter'
+  VERSION = "1.5.1"
+  VERSION_ARRAY = VERSION.split(/\./).map(&:to_i)
 
 end
+
+
+require 'rexml/document'
+
+require 'zenml/error'
+require 'zenml/reader'
+require 'zenml/parser_utility'
+require 'zenml/parser'
+require 'zenml/converter'
+require 'zenml/utility'

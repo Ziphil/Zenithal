@@ -1,11 +1,7 @@
 # coding: utf-8
 
 
-require 'rexml/document'
-include REXML
-
-
-class Tag
+class Zenithal::Tag
 
   attr_accessor :name
   attr_accessor :content
@@ -71,7 +67,7 @@ class Tag
 end
 
 
-class Element
+class REXML::Element
 
   alias old_get_index []
   alias old_set_index []=
@@ -94,12 +90,12 @@ class Element
 
   def each_xpath(*args, &block)
     if block
-      XPath.each(self, *args) do |element|
+      REXML::XPath.each(self, *args) do |element|
         block.call(element)
       end
     else
       enumerator = Enumerator.new do |yielder|
-        XPath.each(self, *args) do |element|
+        REXML::XPath.each(self, *args) do |element|
           yielder << element
         end
       end
@@ -111,9 +107,9 @@ class Element
     texts = []
     self.children.each do |child|
       case child
-      when Text
+      when REXML::Text
         texts << child
-      when Element
+      when REXML::Element
         texts.concat(child.get_texts_recursive)
       end
     end
@@ -121,7 +117,7 @@ class Element
   end
 
   def inner_text(compress = false)
-    text = XPath.match(self, ".//text()").map{|s| s.value}.join("")
+    text = REXML::XPath.match(self, ".//text()").map{|s| s.value}.join("")
     if compress
       text.gsub!(/\r/, "")
       text.gsub!(/\n\s*/, " ")
@@ -132,7 +128,7 @@ class Element
   end
 
   def self.build(name, &block)
-    element = Element.new(name)
+    element = REXML::Element.new(name)
     block.call(element)
     return element
   end
@@ -140,12 +136,12 @@ class Element
 end
 
 
-class Parent
+class REXML::Parent
 
   alias old_push <<
 
   def <<(object)
-    if object.is_a?(Nodes)
+    if object.is_a?(REXML::Nodes)
       object.each do |child|
         old_push(child)
       end
@@ -157,12 +153,12 @@ class Parent
 end
 
 
-class Nodes < Array
+class REXML::Nodes < Array
 
   alias old_push <<
 
   def <<(object)
-    if object.is_a?(Nodes)
+    if object.is_a?(REXML::Nodes)
       object.each do |child|
         old_push(child)
       end
@@ -173,19 +169,19 @@ class Nodes < Array
   end
 
   def +(other)
-    return Nodes.new(super(other))
+    return REXML::Nodes.new(super(other))
   end
 
   def trim_indents
     texts = []
-    if self.last.is_a?(Text)
+    if self.last.is_a?(REXML::Text)
       self.last.value = self.last.value.rstrip
     end
     self.each do |child|
       case child
-      when Text
+      when REXML::Text
         texts << child
-      when Element
+      when REXML::Element
         texts.concat(child.get_texts_recursive)
       end
     end
@@ -198,7 +194,7 @@ class Nodes < Array
     texts.each do |text|
       text.value = text.value.gsub(/\n(\x20+)/){"\n" + " " * ($1.length - indent_length)}
     end
-    if self.first.is_a?(Text)
+    if self.first.is_a?(REXML::Text)
       self.first.value = self.first.value.lstrip
     end
   end
@@ -209,7 +205,7 @@ end
 class String
 
   def ~
-    return Text.new(self, true, nil, false)
+    return REXML::Text.new(self, true, nil, false)
   end
 
 end

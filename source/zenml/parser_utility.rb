@@ -1,7 +1,7 @@
 # coding: utf-8
 
 
-class Parser
+class Zenithal::Parser
 
   ERROR_TAG = Object.new
 
@@ -9,24 +9,24 @@ class Parser
 
   def initialize(source)
     case source
-    when StringReader
+    when Zenithal::StringReader
       @source = source
     when File
-      @source = StringReader.new(source.read)
+      @source = Zenithal::StringReader.new(source.read)
     else
-      @source = StringReader.new(source.to_s)
+      @source = Zenithal::StringReader.new(source.to_s)
     end
     @inside_run = false
   end
 
   def update(source)
     case source
-    when StringReader
+    when Zenithal::StringReader
       @source = source
     when File
-      @source = StringReader.new(source.read)
+      @source = Zenithal::StringReader.new(source.read)
     else
-      @source = StringReader.new(source.to_s)
+      @source = Zenithal::StringReader.new(source.to_s)
     end
     @inside_run = false
   end
@@ -42,7 +42,7 @@ class Parser
       end
     end
     unless value
-      raise ZenithalParseError.new(message)
+      raise Zenithal::ZenithalParseError.new(message)
     end
     return value
   end
