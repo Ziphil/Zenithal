@@ -188,6 +188,11 @@ module Zenithal::ZenithalParserMethod
   end
 
   def parse_children_list(options)
+    children_list = parse_children_chain(options)
+    return children_list
+  end
+
+  def parse_children_chain(options)
     first_children = choose(->{parse_empty_children(options)}, ->{parse_children(options)})
     rest_children_list = many(->{parse_children(options)})
     children_list = [first_children] + rest_children_list
