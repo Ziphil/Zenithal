@@ -82,10 +82,10 @@ class Zenithal::Parser
         message = ""
       end
       unless predicate
-        throw_custom(error_message(message))
+        throw_custom(message, true)
       end
     else
-      throw_custom(error_message("Unexpected end of file"))
+      throw_custom("Unexpected end of file")
     end
     char = @source.read
     return char
@@ -109,10 +109,10 @@ class Zenithal::Parser
     if char
       if chars.any?{|s| s == char}
         chars_string = chars.map{|s| "'#{s}'"}.join(", ")
-        throw_custom(error_message("Expected other than #{chars_string} but got '#{char}'"))
+        throw_custom("Expected other than #{chars_string} but got '#{char}'")
       end
     else
-      throw_custom(error_message("Unexpected end of file"))
+      throw_custom("Unexpected end of file")
     end
     char = @source.read
     return char
@@ -121,7 +121,7 @@ class Zenithal::Parser
   def parse_eof
     char = @source.peek
     if char
-      throw_custom(error_message("Document ends before reaching end of file"))
+      throw_custom("Document ends before reaching end of file")
     end
     char = @source.read
     return true
@@ -129,7 +129,7 @@ class Zenithal::Parser
 
   # Parses nothing; thus an error always occur.
   def parse_none
-    throw_custom(error_message("This cannot happen"))
+    throw_custom("This cannot happen")
     return nil
   end
 
@@ -144,7 +144,7 @@ class Zenithal::Parser
     end
     unless value
       @source.reset(mark)
-      throw_custom(message)
+      throw_custom(message, true)
     end
     return value
   end
@@ -165,7 +165,7 @@ class Zenithal::Parser
       end
     end
     unless value
-      throw_custom(message)
+      throw_custom(message, true)
     end
     return value
   end
@@ -190,13 +190,13 @@ class Zenithal::Parser
         end
       else
         if mark != @source.mark
-          throw_custom(message)
+          throw_custom(message, true)
         end
         break
       end
     end
     unless count >= lower_limit
-      throw_custom(message)
+      throw_custom(message, true)
     end
     return values
   end
@@ -214,7 +214,10 @@ class Zenithal::Parser
 
   # Raises a parse error.
   # Do not use the standard exception mechanism during parsing, and always use this method to avoid creating an unnecessary stacktrace.
-  def throw_custom(message)
+  def throw_custom(message, raw = false)
+    unless raw
+      message = error_message(message)
+    end
     throw(ERROR_TAG, message)
   end
 
