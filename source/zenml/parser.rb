@@ -243,11 +243,11 @@ module Zenithal::ZenithalParserMethod
 
   def parse_text_plain(options)
     out_chars = [ESCAPE_START, CONTENT_END]
-    if @version == "1.1"
-      out_chars.push(CONTENT_DELIMITER)
-    end
     unless options[:verbal]
       out_chars.push(ELEMENT_START, MACRO_START, CONTENT_START, COMMENT_DELIMITER)
+      if @version == "1.1"
+        out_chars.push(CONTENT_DELIMITER)
+      end
       @special_element_names.each do |kind, name|
         out_chars.push(SPECIAL_ELEMENT_STARTS[kind], SPECIAL_ELEMENT_ENDS[kind])
       end
