@@ -19,6 +19,7 @@ gem install zenml
 Note that the version of the syntax itself is independent of that of the processor.
 
 - [Version 1.0](document/1.0.md)
+- Version 1.1 (in preparation)
 
 ## Usage
 Create a `ZenithalParser` instance with a ZenML string, and then call `parse` method.
