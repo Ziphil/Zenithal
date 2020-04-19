@@ -16,7 +16,6 @@ class Zenithal::Parser
     else
       @source = Zenithal::StringReader.new(source.to_s)
     end
-    @inside_run = false
   end
 
   def update(source)
@@ -28,18 +27,12 @@ class Zenithal::Parser
     else
       @source = Zenithal::StringReader.new(source.to_s)
     end
-    @inside_run = false
   end
 
   def run
     value = nil
     message = catch(ERROR_TAG) do
-      begin
-        @inside_run = true
-        value = parse
-      ensure
-        @inside_run = false
-      end
+      value = parse
     end
     unless value
       raise Zenithal::ZenithalParseError.new(message)
@@ -47,14 +40,14 @@ class Zenithal::Parser
     return value
   end
 
+  private
+
   # Parses a whole data.
   # This method is intended to be overridden in subclasses.
   def parse
     throw_custom("Not implemented")
     return nil
   end
-
-  private
 
   # Parses a single character which matches the specified query.
   # If the next character does not match the query or the end of file is reached, then an error occurs and no input is consumed.

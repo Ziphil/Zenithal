@@ -40,18 +40,15 @@ module Zenithal::ZenithalParserMethod
     0x3001..0xD7FF, 0xF900..0xFDCF, 0xFDF0..0xFFFD, 0x10000..0xEFFFF
   ]
 
+  private
+
   def parse
-    unless @inside_run
-      warn("This method is now only for internal use. Use 'run' instead.", uplevel: 1)
-    end
     if @whole
       parse_document
     else
       parse_nodes({})
     end
   end
-
-  private
 
   def parse_document
     document = REXML::Document.new
