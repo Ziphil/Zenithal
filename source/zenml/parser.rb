@@ -20,7 +20,7 @@ module Zenithal::ZenithalParserMethod
   COMMENT_DELIMITER = "#"
   SYSTEM_INSTRUCTION_NAME = "zml"
   MARK_CHARS = {:instruction => "?", :trim => "*", :verbal => "~", :multiple => "+"}
-  ESCAPE_CHARS = ["&", "<", ">", "'", "\"", "{", "}", "[", "]", "/", "\\", "|", "`", "#"]
+  ESCAPE_CHARS = ["&", "<", ">", "'", "\"", "{", "}", "[", "]", "/", "\\", "|", "`", "#", ";"]
   SPACE_CHARS = [0x20, 0x9, 0xD, 0xA]
   VALID_FIRST_IDENTIFIER_CHARS = [
     0x3A, 0x5F,
@@ -193,7 +193,7 @@ module Zenithal::ZenithalParserMethod
     if @version == "1.0"
       children_list = parse_children_chain(options)
     else
-      children_list = choose(->{parse_empty_children(options)}, ->{parse_children_chain(options)})
+      children_list = choose(->{parse_empty_children_chain(options)}, ->{parse_children_chain(options)})
     end
     return children_list
   end
@@ -206,6 +206,12 @@ module Zenithal::ZenithalParserMethod
     else
       children_list = many(->{parse_children(options)})
     end
+    return children_list
+  end
+
+  def parse_empty_children_chain(options)
+    children = parse_empty_children(options)
+    children_list = [children]
     return children_list
   end
 
@@ -235,6 +241,9 @@ module Zenithal::ZenithalParserMethod
 
   def parse_text_plain(options)
     out_chars = [ESCAPE_START, CONTENT_END]
+    if @version == "1.1"
+      out_chars.push(CONTENT_DELIMITER)
+    end
     unless options[:verbal]
       out_chars.push(ELEMENT_START, MACRO_START, CONTENT_START, COMMENT_DELIMITER)
       @special_element_names.each do |kind, name|
