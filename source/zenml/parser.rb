@@ -434,7 +434,7 @@ module Zenithal::ZenithalParserMethod
 
   def check_version
     string = @source.string
-    if match = string.match(/\\zml\?\s*|.*version\s*=\s*"(\d+\.\d+)".*|/)
+    if match = string.match(/\\zml\?\s*\|.*version\s*=\s*"(\d+\.\d+)".*\|/)
       @version = match[1]
     end
   end
