@@ -1,9 +1,9 @@
 <div align="center">
-<h1>Zenithal Markup Language</h1>
+<h1>Zenithal Markup Language (ZenML)</h1>
 </div>
 
 ## Overview
-Zenithal Markup Language (“ZML”, or “ZenML” for discernability) serves an alternative syntax for XML.
+Zenithal Markup Language (ZenML) serves an alternative syntax for XML.
 It is almost fully compatible with XML, and less redundant and more readable than XML.
 
 This repository provides a script for converting ZenML to XML, together with the utility classes which help to transform XML documents.
