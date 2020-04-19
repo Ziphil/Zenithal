@@ -93,17 +93,13 @@ module Zenithal::ZenithalParserMethod
   end
 
   def parse_element(options)
-    start_char = parse_char_any([ELEMENT_START, MACRO_START])
-    name = parse_identifier(options)
-    marks = parse_marks(options)
-    attributes = maybe(->{parse_attributes(options)}) || {}
-    macro = start_char == MACRO_START
+    name, marks, attributes, macro = parse_tag(options)
     next_options = determine_options(name, marks, attributes, macro, options)
     children_list = parse_children_list(next_options)
     if name == SYSTEM_INSTRUCTION_NAME
       parse_space
     end
-    if start_char == MACRO_START
+    if macro
       element = process_macro(name, marks, attributes, children_list, options)
     else
       element = create_element(name, marks, attributes, children_list, options)
@@ -123,6 +119,15 @@ module Zenithal::ZenithalParserMethod
     parse_char(SPECIAL_ELEMENT_ENDS[kind])
     element = create_special_element(kind, children, options)
     return element
+  end
+
+  def parse_tag(options)
+    start_char = parse_char_any([ELEMENT_START, MACRO_START])
+    name = parse_identifier(options)
+    marks = parse_marks(options)
+    attributes = maybe(->{parse_attributes(options)}) || {}
+    macro = start_char == MACRO_START
+    return name, marks, attributes, macro
   end
 
   def parse_marks(options)
