@@ -351,6 +351,7 @@ module Zenithal::ZenithalParserMethod
   def create_instruction(target, attributes, children, options)
     nodes = REXML::Nodes[]
     if target == SYSTEM_INSTRUCTION_NAME
+      @version = attributes["version"] if attributes["version"]
       @special_element_names[:brace] = attributes["brace"] if attributes["brace"]
       @special_element_names[:bracket] = attributes["bracket"] if attributes["bracket"]
       @special_element_names[:slash] = attributes["slash"] if attributes["slash"]
@@ -451,19 +452,20 @@ class Zenithal::ZenithalParser < Zenithal::Parser
 
   def initialize(source)
     super(source)
-    @version = "1.0"
     @exact = true
     @whole = true
+    @fallback_version = "1.0"
+    @version = "1.0"
+    @fallback_special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
     @special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
-    @default_special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
     @macros = {}
     @plugins = {}
   end
 
   def update(source)
     super(source)
-    @version = "1.0"
-    @special_element_names = @default_special_element_names
+    @version = @fallback_version
+    @special_element_names = @fallback_special_element_names
   end
 
   # Registers a macro.
@@ -491,18 +493,23 @@ class Zenithal::ZenithalParser < Zenithal::Parser
     @plugins.delete(name)
   end
 
+  def version=(version)
+    @version = version
+    @fallback_version = version
+  end
+
   def brace_name=(name)
-    @default_special_element_names[:brace] = name
+    @fallback_special_element_names[:brace] = name
     @special_element_names[:brace] = name
   end
 
   def bracket_name=(name)
-    @default_special_element_names[:bracket] = name
+    @fallback_special_element_names[:bracket] = name
     @special_element_names[:bracket] = name
   end
 
   def slash_name=(name)
-    @default_special_element_names[:slash] = name
+    @fallback_special_element_names[:slash] = name
     @special_element_names[:slash] = name
   end
 
