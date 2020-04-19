@@ -66,7 +66,7 @@ module Zenithal::ZenithalParserMethod
   def parse_nodes(options)
     nodes = nil
     if options[:plugin]
-      nodes = options[:plugin].parse
+      nodes = options[:plugin].send(:parse)
     elsif options[:verbal]
       raw_nodes = many(->{parse_text(options)})
       nodes = raw_nodes.inject(REXML::Nodes[], :<<)
