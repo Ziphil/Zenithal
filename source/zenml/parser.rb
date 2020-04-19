@@ -286,7 +286,9 @@ module Zenithal::ZenithalParserMethod
     parse_char(CONTENT_START)
     content = parse_block_comment_content(options)
     parse_char(CONTENT_END)
-    parse_char(COMMENT_DELIMITER)
+    if @version == "1.0"
+      parse_char(COMMENT_DELIMITER)
+    end
     comment = create_comment(:block, content, options)
     return comment
   end
