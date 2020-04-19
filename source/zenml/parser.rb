@@ -336,12 +336,12 @@ module Zenithal::ZenithalParserMethod
     end
     if marks.include?(:instruction)
       unless children_list.size <= 1
-        throw_custom(error_message("Processing instruction cannot have more than one argument"))
+        throw_custom("Processing instruction cannot have more than one argument")
       end
       nodes = create_instruction(name, attributes, children_list.first, options)
     else
       unless marks.include?(:multiple) || children_list.size <= 1
-        throw_custom(error_message("Normal element cannot have more than one argument"))
+        throw_custom("Normal element cannot have more than one argument")
       end
       nodes = create_normal_element(name, attributes, children_list, options)
     end
@@ -395,7 +395,7 @@ module Zenithal::ZenithalParserMethod
     if name
       nodes = create_element(name, [], {}, [children], options)
     else
-      throw_custom(error_message("No name specified for #{kind} elements"))
+      throw_custom("No name specified for #{kind} elements")
     end
     return nodes
   end
@@ -412,7 +412,7 @@ module Zenithal::ZenithalParserMethod
 
   def create_escape(place, char, options)
     unless ESCAPE_CHARS.include?(char)
-      throw_custom(error_message("Invalid escape"))
+      throw_custom("Invalid escape")
     end
     return char
   end
@@ -427,7 +427,7 @@ module Zenithal::ZenithalParserMethod
     elsif @plugins.key?(name)
       elements = children_list.first
     else
-      throw_custom(error_message("No such macro '#{name}'"))
+      throw_custom("No such macro '#{name}'")
     end
     return elements
   end
