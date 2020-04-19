@@ -14,6 +14,7 @@ module Zenithal::ZenithalParserMethod
   STRING_END = "\""
   CONTENT_START = "<"
   CONTENT_END = ">"
+  CONTENT_DELIMITER = ";"
   SPECIAL_ELEMENT_STARTS = {:brace => "{", :bracket => "[", :slash => "/"}
   SPECIAL_ELEMENT_ENDS = {:brace => "}", :bracket => "]", :slash => "/"}
   COMMENT_DELIMITER = "#"
@@ -54,6 +55,7 @@ module Zenithal::ZenithalParserMethod
 
   def parse_document
     document = REXML::Document.new
+    check_version
     children = parse_nodes({})
     if @exact
       parse_eof 
@@ -188,14 +190,22 @@ module Zenithal::ZenithalParserMethod
   end
 
   def parse_children_list(options)
-    children_list = parse_children_chain(options)
+    if @version == "1.0"
+      children_list = parse_children_chain(options)
+    else
+      children_list = choose(->{parse_empty_children(options)}, ->{parse_children_chain(options)})
+    end
     return children_list
   end
 
   def parse_children_chain(options)
-    first_children = choose(->{parse_empty_children(options)}, ->{parse_children(options)})
-    rest_children_list = many(->{parse_children(options)})
-    children_list = [first_children] + rest_children_list
+    if @version == "1.0"
+      first_children = choose(->{parse_empty_children(options)}, ->{parse_children(options)})
+      rest_children_list = many(->{parse_children(options)})
+      children_list = [first_children] + rest_children_list
+    else
+      children_list = many(->{parse_children(options)})
+    end
     return children_list
   end
 
@@ -207,8 +217,13 @@ module Zenithal::ZenithalParserMethod
   end
 
   def parse_empty_children(options)
-    parse_char(CONTENT_END)
-    children = REXML::Nodes[]
+    if @version == "1.0"
+      parse_char(CONTENT_END)
+      children = REXML::Nodes[]
+    else
+      parse_char(CONTENT_DELIMITER)
+      children = REXML::Nodes[]
+    end
     return children
   end
 
@@ -336,7 +351,6 @@ module Zenithal::ZenithalParserMethod
   def create_instruction(target, attributes, children, options)
     nodes = REXML::Nodes[]
     if target == SYSTEM_INSTRUCTION_NAME
-      @version = attributes["version"] if attributes["version"]
       @special_element_names[:brace] = attributes["brace"] if attributes["brace"]
       @special_element_names[:bracket] = attributes["bracket"] if attributes["bracket"]
       @special_element_names[:slash] = attributes["slash"] if attributes["slash"]
@@ -418,6 +432,13 @@ module Zenithal::ZenithalParserMethod
     return elements
   end
 
+  def check_version
+    string = @source.string
+    if match = string.match(/\\zml\?\s*|.*version\s*=\s*"(\d+\.\d+)".*|/)
+      @version = match[1]
+    end
+  end
+
 end
 
 
@@ -430,17 +451,19 @@ class Zenithal::ZenithalParser < Zenithal::Parser
 
   def initialize(source)
     super(source)
-    @version = nil
+    @version = "1.0"
     @exact = true
     @whole = true
     @special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
+    @default_special_element_names = {:brace => nil, :bracket => nil, :slash => nil}
     @macros = {}
     @plugins = {}
   end
 
   def update(source)
     super(source)
-    @version = nil
+    @version = "1.0"
+    @special_element_names = @default_special_element_names
   end
 
   # Registers a macro.
@@ -469,14 +492,17 @@ class Zenithal::ZenithalParser < Zenithal::Parser
   end
 
   def brace_name=(name)
+    @default_special_element_names[:brace] = name
     @special_element_names[:brace] = name
   end
 
   def bracket_name=(name)
+    @default_special_element_names[:bracket] = name
     @special_element_names[:bracket] = name
   end
 
   def slash_name=(name)
+    @default_special_element_names[:slash] = name
     @special_element_names[:slash] = name
   end
 

@@ -3,11 +3,13 @@
 
 class Zenithal::StringReader
 
+  attr_reader :string
   attr_reader :lineno
   attr_reader :columnno
 
   def initialize(string)
-    @string = string.chars
+    @string = string
+    @chars = string.chars
     @pos = -1
     @lineno = 1
     @columnno = 1
@@ -16,7 +18,7 @@ class Zenithal::StringReader
   def read
     @pos += 1
     @columnno += 1
-    char = @string[@pos]
+    char = @chars[@pos]
     if char == "\n"
       @lineno += 1
       @columnno = 1
@@ -25,7 +27,7 @@ class Zenithal::StringReader
   end
 
   def peek
-    char = @string[@pos + 1]
+    char = @chars[@pos + 1]
     return char
   end
 
