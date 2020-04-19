@@ -3,7 +3,7 @@
 
 module Zenithal
 
-  VERSION = "1.5.1"
+  VERSION = "1.6.0"
   VERSION_ARRAY = VERSION.split(/\./).map(&:to_i)
 
 end
