@@ -82,7 +82,7 @@ class Zenithal::Parser
         message = ""
       end
       unless predicate
-        throw_custom(message, true)
+        throw_custom(message)
       end
     else
       throw_custom("Unexpected end of file")
