@@ -206,7 +206,7 @@ module Zenithal::ZenithalParserMethod
       rest_children_list = many(->{parse_children(options)})
       children_list = [first_children] + rest_children_list
     else
-      children_list = many(->{parse_children(options)})
+      children_list = many(->{parse_children(options)}, 1..)
     end
     return children_list
   end
