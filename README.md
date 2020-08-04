@@ -2,6 +2,10 @@
 <h1>Zenithal Markup Language (ZenML)</h1>
 </div>
 
+![](https://img.shields.io/gem/v/zenml?label=version)
+![](https://img.shields.io/github/commit-activity/y/Ziphil/Zenithal?label=commits)
+
+
 ## Overview
 Zenithal Markup Language (ZenML) serves an alternative syntax for XML.
 It is almost fully compatible with XML, and less redundant and more readable than XML.
