@@ -19,7 +19,6 @@ gem install zenml
 ```
 
 ## Syntax
-
 Note that the version of the syntax itself is independent of that of the processor.
 
 - [Version 1.0](document/1.0.md)
