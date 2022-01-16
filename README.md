@@ -12,6 +12,9 @@ It is almost fully compatible with XML, and less redundant and more readable tha
 
 This repository provides a script for converting ZenML to XML, together with the utility classes which help to transform XML documents.
 
+This library is obsolete and no longer maintained.
+Use the [TypeScript implementation](https://github.com/Ziphil/Zenml) instead.
+
 ## Installation
 Install from RubyGems.
 ```
